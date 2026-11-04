@@ -43,6 +43,16 @@ class WC_Booking_Form {
 				WC_VERSION,
 				true
 			);
+			$payment_settings = get_option( 'wc_payment_settings', array() );
+			if ( ! empty( $payment_settings['turnstile_site_key'] ) ) {
+				wp_enqueue_script(
+					'wc-turnstile',
+					'https://challenges.cloudflare.com/turnstile/v0/api.js',
+					array(),
+					null,
+					true
+				);
+			}
 
 			// Localize script data (Country rules, max upload limit, i18n strings)
 			$countries_settings = get_option( 'wc_countries_settings', array(
@@ -113,6 +123,15 @@ class WC_Booking_Form {
 		$payment_settings = get_option( 'wc_payment_settings', array() );
 		$has_stripe = class_exists( 'WC_Gateway_Stripe' ) && WC_Gateway_Stripe::is_available();
 		$has_paypal = class_exists( 'WC_Gateway_PayPal' ) && WC_Gateway_PayPal::is_available();
+		$require_online = ! empty( $payment_settings['require_online_payment'] );
+		if ( $require_online ) {
+			$active_manual = array();
+			if ( ! $has_stripe && ! $has_paypal ) {
+				return self::render_payment_unavailable_notice();
+			}
+		} elseif ( empty( $active_manual ) && ! $has_stripe && ! $has_paypal ) {
+			return self::render_payment_unavailable_notice();
+		}
 
 		// 4. Booking can still be displayed when payment methods are not configured.
 		if ( empty( $active_types ) ) {
@@ -121,6 +140,14 @@ class WC_Booking_Form {
 
 		// 5. Render Multi-step Booking Form
 		return self::render_booking_form( $active_types, $active_manual, $has_stripe, $has_paypal, $payment_settings );
+	}
+
+	protected static function render_payment_unavailable_notice() {
+		return '<div class="wc-booking-unavailable-card" role="status"><h2 class="wc-unavailable-title">' .
+			esc_html__( 'Booking is not available yet.', 'wellness-consult' ) .
+			'</h2><p class="wc-unavailable-desc">' .
+			esc_html__( 'Online payment is required, but no online payment method is currently available.', 'wellness-consult' ) .
+			'</p></div>';
 	}
 
 	/**
@@ -159,6 +186,31 @@ class WC_Booking_Form {
 		// Retrieve stored submission errors or flash data
 		$form_errors = WC_Booking_Handler::get_flash_errors();
 		$old_data    = WC_Booking_Handler::get_flash_data();
+		$draft_token = ! empty( $_COOKIE['wc_booking_draft'] ) ? sanitize_text_field( wp_unslash( $_COOKIE['wc_booking_draft'] ) ) : '';
+		$draft_id    = WC_Booking_Handler::find_browser_draft( $draft_token );
+		if ( $draft_id && empty( $old_data ) ) {
+			$draft_meta = array(
+				'consultation_type' => '_wc_type_id',
+				'consult_mode'      => '_wc_consult_mode',
+				'name'              => '_wc_name',
+				'age'               => '_wc_age',
+				'gender'            => '_wc_gender',
+				'country'           => '_wc_country',
+				'timezone'          => '_wc_timezone',
+				'phone'             => '_wc_contact_phone',
+				'email'             => '_wc_contact_email',
+				'concern'           => '_wc_concern',
+				'message'           => '_wc_message',
+				'preferred_window'  => '_wc_preferred_window',
+			);
+			foreach ( $draft_meta as $field => $meta_key ) {
+				$old_data[ $field ] = get_post_meta( $draft_id, $meta_key, true );
+			}
+			$old_data['draft_exists'] = true;
+		}
+		if ( $draft_id ) {
+			$old_data['draft_exists'] = true;
+		}
 
 		$all_countries = WC_Options::get_all_iso_countries();
 		$countries_settings = get_option( 'wc_countries_settings', array(
@@ -190,9 +242,14 @@ class WC_Booking_Form {
 		ob_start();
 		?>
 		<div class="wc-booking-container" id="wc-booking-wrapper">
+			<?php if ( isset( $_GET['wc_payment_return'] ) ) : ?>
+				<div class="wc-no-methods-alert" role="status"><?php esc_html_e( 'Payment is being verified by the payment provider. Your booking is not confirmed until verification is complete.', 'wellness-consult' ); ?></div>
+			<?php elseif ( isset( $_GET['wc_payment_cancelled'] ) ) : ?>
+				<div class="wc-no-methods-alert" role="status"><?php esc_html_e( 'Checkout was canceled. Your draft is saved in this browser for up to 24 hours.', 'wellness-consult' ); ?></div>
+			<?php endif; ?>
 
 			<!-- Step Progress Indicator -->
-			<div class="wc-progress-nav" role="tablist" aria-label="<?php esc_attr_e( 'Booking Progress', 'wellness-consult' ); ?>">
+			<div class="wc-progress-nav" role="list" aria-label="<?php esc_attr_e( 'Booking Progress', 'wellness-consult' ); ?>">
 				<div class="wc-progress-step is-active" id="wc-step-pill-1" data-step="1">
 					<div class="wc-step-circle">1</div>
 					<div class="wc-step-label"><?php esc_html_e( 'Type & Mode', 'wellness-consult' ); ?></div>
@@ -200,12 +257,12 @@ class WC_Booking_Form {
 				<div class="wc-progress-line"></div>
 				<div class="wc-progress-step" id="wc-step-pill-2" data-step="2">
 					<div class="wc-step-circle">2</div>
-					<div class="wc-step-label"><?php esc_html_e( 'Payment Method', 'wellness-consult' ); ?></div>
+					<div class="wc-step-label"><?php esc_html_e( 'Your details', 'wellness-consult' ); ?></div>
 				</div>
 				<div class="wc-progress-line"></div>
 				<div class="wc-progress-step" id="wc-step-pill-3" data-step="3">
 					<div class="wc-step-circle">3</div>
-					<div class="wc-step-label"><?php esc_html_e( 'Confidential Form', 'wellness-consult' ); ?></div>
+					<div class="wc-step-label"><?php esc_html_e( 'Payment', 'wellness-consult' ); ?></div>
 				</div>
 			</div>
 
@@ -223,9 +280,14 @@ class WC_Booking_Form {
 				<?php endif; ?>
 			</div>
 
-			<form id="wc-booking-multistep-form" method="post" action="" enctype="multipart/form-data" novalidate>
+			<form id="wc-booking-multistep-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" novalidate>
+				<input type="hidden" name="action" value="wc_booking_flow" />
 				<?php wp_nonce_field( 'wc_submit_booking_action', 'wc_booking_nonce' ); ?>
 				<input type="hidden" name="wc_booking_submit" value="1" />
+				<input type="hidden" name="wc_booking_stage" id="wc-booking-stage" value="create_draft" />
+				<?php if ( $draft_id ) : ?>
+					<?php wp_nonce_field( 'wc_booking_draft_' . $draft_token, 'wc_draft_nonce' ); ?>
+				<?php endif; ?>
 				<input type="hidden" name="wc_idempotency_token" value="<?php echo esc_attr( wp_generate_uuid4() ); ?>" />
 
 				<!-- Anti-spam Honeypot (tabindex -1, hidden) -->
@@ -342,7 +404,7 @@ class WC_Booking_Form {
 					<div class="wc-step-buttons">
 						<div></div>
 						<button type="button" class="button button-primary wc-btn-next" id="wc-btn-step-1-next" data-next="2">
-							<?php esc_html_e( 'Proceed to Payment Method', 'wellness-consult' ); ?> &rarr;
+							<?php esc_html_e( 'Continue to your details', 'wellness-consult' ); ?> &rarr;
 						</button>
 					</div>
 				</section>
@@ -352,10 +414,10 @@ class WC_Booking_Form {
 				<!-- ========================================== -->
 				<section class="wc-step-section" id="wc-step-2" aria-labelledby="wc-step-2-title">
 					<h2 id="wc-step-2-title" class="wc-step-heading" tabindex="-1">
-						<?php esc_html_e( '2. Choose Payment Method', 'wellness-consult' ); ?>
+						<?php esc_html_e( '2. Your details', 'wellness-consult' ); ?>
 					</h2>
 					<p class="wc-step-desc">
-						<?php esc_html_e( 'Select a payment method. Complete your payment, then upload the receipt screenshot with your booking details.', 'wellness-consult' ); ?>
+						<?php esc_html_e( 'Enter your details and consent. Your booking is not confirmed until payment is completed or verified.', 'wellness-consult' ); ?>
 					</p>
 
 					<div class="wc-fee-summary-strip wc-step2-summary">
@@ -585,7 +647,7 @@ class WC_Booking_Form {
 										<div class="wc-mandatory-note-item">
 											<span class="wc-note-bullet">📌</span>
 											<div class="wc-note-content">
-												<span><?php esc_html_e( 'Use your Reference ID as the payment note (you get it right after submitting)', 'wellness-consult' ); ?></span>
+												<span><?php esc_html_e( 'Use your name or alias as the payment note. Your Reference ID is assigned after you submit the payment proof.', 'wellness-consult' ); ?></span>
 											</div>
 										</div>
 										<div class="wc-mandatory-note-item">
@@ -611,43 +673,42 @@ class WC_Booking_Form {
 							</div>
 						<?php endforeach; ?>
 
-						<!-- Online gateways are shown as informational cards only in this update. -->
 						<?php if ( $has_stripe ) : ?>
 							<div class="wc-payment-option-card wc-card-online" data-method-type="online" data-countries="" id="wc-method-card-stripe">
-								<div class="wc-payment-option-label">
-									<input type="radio" id="method_stripe" disabled aria-label="<?php esc_attr_e( 'Stripe checkout available in the next update', 'wellness-consult' ); ?>" />
+								<label class="wc-payment-option-label" for="method_stripe">
+									<input type="radio" name="payment_method_id" id="method_stripe" value="stripe" data-kind="online" />
 									<div class="wc-payment-option-title-row">
 										<div class="wc-method-header-title">
 											<strong><?php esc_html_e( 'Stripe', 'wellness-consult' ); ?></strong>
-											<span class="wc-badge-online"><?php esc_html_e( 'Available in the next update', 'wellness-consult' ); ?></span>
+											<span class="wc-badge-online"><?php esc_html_e( 'Pay securely online', 'wellness-consult' ); ?></span>
 										</div>
 									</div>
-								</div>
+								</label>
 							</div>
 						<?php endif; ?>
 
 						<!-- PayPal Online Option -->
 						<?php if ( $has_paypal ) : ?>
 							<div class="wc-payment-option-card wc-card-online" data-method-type="online" data-countries="" id="wc-method-card-paypal">
-								<div class="wc-payment-option-label">
-									<input type="radio" id="method_paypal" disabled aria-label="<?php esc_attr_e( 'PayPal checkout available in the next update', 'wellness-consult' ); ?>" />
+								<label class="wc-payment-option-label" for="method_paypal">
+									<input type="radio" name="payment_method_id" id="method_paypal" value="paypal" data-kind="online" />
 									<div class="wc-payment-option-title-row">
 										<div class="wc-method-header-title">
 											<strong><?php esc_html_e( 'PayPal', 'wellness-consult' ); ?></strong>
-											<span class="wc-badge-online"><?php esc_html_e( 'Available in the next update', 'wellness-consult' ); ?></span>
+											<span class="wc-badge-online"><?php esc_html_e( 'Pay securely online', 'wellness-consult' ); ?></span>
 										</div>
 									</div>
-								</div>
+								</label>
 							</div>
 						<?php endif; ?>
 					</div>
 
 					<div class="wc-step-buttons">
-						<button type="button" class="button button-secondary wc-btn-back" data-back="1">
+						<button type="button" class="button button-secondary wc-btn-back" data-back="2">
 							&larr; <?php esc_html_e( 'Back', 'wellness-consult' ); ?>
 						</button>
-						<button type="button" class="button button-primary wc-btn-next" id="wc-btn-step-2-next" data-next="3" disabled>
-							<?php esc_html_e( 'Continue to Form', 'wellness-consult' ); ?> &rarr;
+						<button type="submit" class="button button-primary wc-btn-submit" id="wc-btn-step-2-next" <?php disabled( empty( $old_data['draft_exists'] ) ); ?>>
+							<?php esc_html_e( 'Continue to payment', 'wellness-consult' ); ?> &rarr;
 						</button>
 					</div>
 				</section>
@@ -657,10 +718,10 @@ class WC_Booking_Form {
 				<!-- ========================================== -->
 				<section class="wc-step-section" id="wc-step-3" aria-labelledby="wc-step-3-title">
 					<h2 id="wc-step-3-title" class="wc-step-heading" tabindex="-1">
-						<?php esc_html_e( '3. Confidential Booking Details & Screenshot', 'wellness-consult' ); ?>
+						<?php esc_html_e( '3. Payment', 'wellness-consult' ); ?>
 					</h2>
 					<p class="wc-step-desc">
-						<?php esc_html_e( 'Your information is handled privately and confidentially. Pseudonyms or aliases are welcome.', 'wellness-consult' ); ?>
+						<?php esc_html_e( 'Choose a payment method. For manual payment, upload your proof after you have paid. No booking is confirmed before payment verification.', 'wellness-consult' ); ?>
 					</p>
 
 					<!-- Selected Summary Strip for Step 3 (CR-1) -->
@@ -818,7 +879,7 @@ class WC_Booking_Form {
 							<p class="wc-upload-subtext">
 								<?php esc_html_e( 'Upload the transaction receipt or screenshot from your banking or wallet app. Accepted formats: JPG, PNG, PDF (Max 5 MB).', 'wellness-consult' ); ?>
 							</p>
-							<p class="wc-help-text"><?php esc_html_e( 'Where do I find my payment screenshot?', 'wellness-consult' ); ?></p>
+							<p class="wc-help-text"><?php esc_html_e( 'Where do I find my payment screenshot? Open your bank or transfer app’s transaction history and save the receipt.', 'wellness-consult' ); ?></p>
 
 							<div class="wc-dropzone-box" id="wc-dropzone">
 								<input type="file" id="wc_payment_proof" name="payment_proof" accept="image/jpeg,image/png,application/pdf" class="wc-file-input" />
@@ -860,7 +921,7 @@ class WC_Booking_Form {
 						<!-- Consent Checkbox (Rule 1 & FR-14) -->
 						<div class="wc-field-group wc-span-full wc-consent-group">
 							<label class="wc-checkbox-label">
-								<input type="checkbox" name="consent_agreed" value="1" required />
+								<input type="checkbox" name="consent_agreed" value="1" required <?php checked( ! empty( $old_data['draft_exists'] ) || ! empty( $old_data['consent_agreed'] ) ); ?> />
 								<span>
 									<?php
 									printf(
@@ -884,11 +945,11 @@ class WC_Booking_Form {
 					</div>
 
 					<div class="wc-step-buttons">
-						<button type="button" class="button button-secondary wc-btn-back" data-back="2">
-							&larr; <?php esc_html_e( 'Back to Payment', 'wellness-consult' ); ?>
+						<button type="button" class="button button-secondary wc-btn-back" data-back="1">
+							&larr; <?php esc_html_e( 'Back to type and mode', 'wellness-consult' ); ?>
 						</button>
-						<button type="submit" class="button button-primary wc-btn-submit" id="wc-submit-booking-btn">
-							<?php esc_html_e( 'Submit Consultation Request', 'wellness-consult' ); ?> &rarr;
+						<button type="submit" class="button button-primary wc-btn-submit" id="wc-submit-booking-btn" <?php disabled( ! empty( $old_data['draft_exists'] ) ); ?>>
+							<?php esc_html_e( 'Submit payment proof', 'wellness-consult' ); ?> &rarr;
 						</button>
 					</div>
 				</section>
@@ -940,7 +1001,9 @@ class WC_Booking_Form {
 
 			<h2 class="wc-confirm-title"><?php esc_html_e( 'Consultation Request Received!', 'wellness-consult' ); ?></h2>
 			<p class="wc-confirm-intro">
-				<?php printf( esc_html__( 'Thank you, %s. Your private consultation request has been successfully registered.', 'wellness-consult' ), '<strong>' . $name . '</strong>' ); ?>
+				<?php
+				printf( esc_html__( 'Thank you, %s. Your booking is NOT confirmed until we verify your payment.', 'wellness-consult' ), '<strong>' . $name . '</strong>' );
+				?>
 			</p>
 
 			<div class="wc-ref-highlight-box">

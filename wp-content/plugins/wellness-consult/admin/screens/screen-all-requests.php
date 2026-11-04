@@ -21,7 +21,7 @@ $current_user_id = get_current_user_id();
 
 $action = isset( $_GET['action'] ) ? sanitize_key( wp_unslash( $_GET['action'] ) ) : 'list';
 $req_id = isset( $_GET['id'] ) ? absint( wp_unslash( $_GET['id'] ) ) : 0;
-
+$can_delete_requests = current_user_can( 'manage_options' ) || current_user_can( 'wc_manage_all_requests' );
 // Detail View
 if ( 'view' === $action && $req_id > 0 ) :
 	$post = get_post( $req_id );
@@ -58,6 +58,12 @@ if ( 'view' === $action && $req_id > 0 ) :
 	$current_proof_entry = is_array( $proof_history ) && ! empty( $proof_history )
 		? end( $proof_history )
 		: array();
+	if ( empty( $proof_file ) && is_array( $current_proof_entry ) ) {
+		$proof_file = $current_proof_entry['relative_path'] ?? ( $current_proof_entry['path'] ?? '' );
+	}
+	$current_proof_index = is_array( $proof_history ) && ! empty( $proof_history )
+		? array_key_last( $proof_history )
+		: null;
 	$current_proof_mime = is_array( $current_proof_entry ) && isset( $current_proof_entry['mime'] )
 		? $current_proof_entry['mime']
 		: '';
@@ -104,11 +110,20 @@ if ( 'view' === $action && $req_id > 0 ) :
 	$platform         = get_post_meta( $req_id, '_wc_platform', true );
 	$meeting_link     = get_post_meta( $req_id, '_wc_meeting_link', true );
 	$appointment_time = get_post_meta( $req_id, '_wc_appointment_time', true );
+	$appointment_duration = absint( get_post_meta( $req_id, '_wc_duration', true ) );
+	$assigned_consultant_id = absint( get_post_meta( $req_id, '_wc_consultant_id', true ) );
+	$appointment_utc  = WC_Scheduling::get_request_utc( $req_id );
+	$type_id = get_post_meta( $req_id, '_wc_type_id', true );
+	$consultation_types = get_option( 'wc_consultation_types', array() );
+	$default_duration = absint( $consultation_types[ $type_id ]['duration'] ?? 30 );
+	$appointment_duration = $appointment_duration ? $appointment_duration : ( $default_duration ? $default_duration : 30 );
 	$mode_label       = WC_Options::get_mode_label( $consult_mode );
 	$mode_icon        = WC_Options::get_mode_icon( $consult_mode );
+	$can_schedule     = $can_verify;
 
 	$schedule_notice      = '';
 	$schedule_notice_type = 'success';
+	$email_delivery_failed = false;
 
 	// Handle payment actions only for users explicitly allowed to manage requests.
 	if ( isset( $_POST['wc_verify_payment'] ) ) {
@@ -185,6 +200,7 @@ if ( 'view' === $action && $req_id > 0 ) :
 				$verification_note = $val_note;
 				$verification_checklist = $checklist_record;
 				$send_result = WC_Booking_Handler::send_event_email( 'payment_confirmed', array(
+					'request_id'        => $req_id,
 					'email'             => $email,
 					'reference_id'      => $ref_id,
 					'name'              => $name,
@@ -195,7 +211,7 @@ if ( 'view' === $action && $req_id > 0 ) :
 				) );
 				$schedule_notice = esc_html__( 'Payment approved. The request is now awaiting scheduling.', 'wellness-consult' );
 				if ( false === $send_result ) {
-					$schedule_notice .= ' ' . esc_html__( 'The payment confirmation email could not be sent.', 'wellness-consult' );
+					$email_delivery_failed = true;
 					$schedule_notice_type = 'error';
 				}
 			}
@@ -233,6 +249,7 @@ if ( 'view' === $action && $req_id > 0 ) :
 				$status           = WC_Status::STATUS_REJECTED;
 				$rejection_reason = $rej_reason;
 				$send_result = WC_Booking_Handler::send_event_email( 'request_rejected', array(
+					'request_id'        => $req_id,
 					'email'             => $email,
 					'reference_id'      => $ref_id,
 					'name'              => $name,
@@ -243,7 +260,7 @@ if ( 'view' === $action && $req_id > 0 ) :
 				) );
 				$schedule_notice = esc_html__( 'Payment proof rejected.', 'wellness-consult' );
 				if ( false === $send_result ) {
-					$schedule_notice .= ' ' . esc_html__( 'The rejection email could not be sent.', 'wellness-consult' );
+					$email_delivery_failed = true;
 					$schedule_notice_type = 'error';
 				}
 			}
@@ -372,58 +389,191 @@ if ( 'view' === $action && $req_id > 0 ) :
 		}
 	}
 
-	// Handle Scheduling Form Submission (CR-1 Rule 4)
-	if ( ! empty( $_POST['wc_schedule_request'] ) && check_admin_referer( 'wc_schedule_action_' . $req_id, 'wc_schedule_nonce' ) ) {
-		$new_platform = sanitize_text_field( wp_unslash( $_POST['schedule_platform'] ?? '' ) );
-		$new_access   = sanitize_text_field( wp_unslash( $_POST['meeting_link_or_handle'] ?? '' ) );
-		$new_time     = sanitize_text_field( wp_unslash( $_POST['appointment_datetime'] ?? '' ) );
+	// Schedule and reschedule only after payment approval.
+	if ( isset( $_POST['wc_schedule_request'] ) ) {
+		if ( ! $can_schedule ) {
+			wp_die( esc_html__( 'You do not have permission to schedule appointments.', 'wellness-consult' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'wc_schedule_action_' . $req_id, 'wc_schedule_nonce' );
+		$selected_consultant = isset( $_POST['schedule_consultant'] ) ? absint( $_POST['schedule_consultant'] ) : 0;
+		$selected_date = isset( $_POST['schedule_date'] ) && is_string( $_POST['schedule_date'] ) ? sanitize_text_field( wp_unslash( $_POST['schedule_date'] ) ) : '';
+		$selected_slot = isset( $_POST['schedule_slot'] ) && is_string( $_POST['schedule_slot'] ) ? sanitize_text_field( wp_unslash( $_POST['schedule_slot'] ) ) : '';
+		$selected_duration = isset( $_POST['schedule_duration'] ) ? absint( $_POST['schedule_duration'] ) : 0;
+		$selected_platform_id = isset( $_POST['schedule_platform'] ) && is_string( $_POST['schedule_platform'] ) ? sanitize_key( wp_unslash( $_POST['schedule_platform'] ) ) : '';
+		$selected_access = isset( $_POST['meeting_link_or_handle'] ) && is_string( $_POST['meeting_link_or_handle'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['meeting_link_or_handle'] ) ) ) : '';
+		$consultant_user = get_userdata( $selected_consultant );
+		$consultant_is_valid = $consultant_user && ( in_array( 'wc_consultant', (array) $consultant_user->roles, true ) || in_array( 'administrator', (array) $consultant_user->roles, true ) );
+		$available_platforms = WC_Options::get_platforms_for_mode( $consult_mode, true );
+		$chosen_platform = $available_platforms[ $selected_platform_id ] ?? array();
 
-		if ( empty( $new_platform ) ) {
-			$schedule_notice      = esc_html__( 'Error: Please select a delivery platform.', 'wellness-consult' );
+		if ( $consultant_user && ! $consultant_is_valid ) {
+			$schedule_notice = esc_html__( 'Select a valid consultant account.', 'wellness-consult' );
 			$schedule_notice_type = 'error';
-		} elseif ( 'video' === $consult_mode && empty( $new_access ) ) {
-			$schedule_notice      = esc_html__( 'Error: A meeting room URL is strictly required for Video Call consultations.', 'wellness-consult' );
+		} elseif ( ! $consultant_is_valid ) {
+			$schedule_notice = esc_html__( 'Select a consultant before scheduling.', 'wellness-consult' );
 			$schedule_notice_type = 'error';
-		} elseif ( in_array( $consult_mode, array( 'voice', 'chat' ), true ) && empty( $new_access ) ) {
-			$schedule_notice      = esc_html__( 'Error: The phone number or username handle is required for voice/chat consultations.', 'wellness-consult' );
+		} elseif ( $selected_duration < 5 || $selected_duration > 480 ) {
+			$schedule_notice = esc_html__( 'Appointment duration must be between 5 and 480 minutes.', 'wellness-consult' );
+			$schedule_notice_type = 'error';
+		} elseif ( empty( $chosen_platform ) ) {
+			$schedule_notice = esc_html__( 'Select an active platform for the patient’s consultation mode.', 'wellness-consult' );
+			$schedule_notice_type = 'error';
+		} elseif ( 'video' === $consult_mode && ( ! filter_var( $selected_access, FILTER_VALIDATE_URL ) || ! in_array( strtolower( (string) wp_parse_url( $selected_access, PHP_URL_SCHEME ) ), array( 'http', 'https' ), true ) ) ) {
+			$schedule_notice = esc_html__( 'Enter a valid http or https meeting URL for a video consultation.', 'wellness-consult' );
+			$schedule_notice_type = 'error';
+		} elseif ( in_array( $consult_mode, array( 'voice', 'chat' ), true ) && '' === $selected_access ) {
+			$schedule_notice = esc_html__( 'Enter the phone number or username to use for this consultation.', 'wellness-consult' );
 			$schedule_notice_type = 'error';
 		} else {
-			update_post_meta( $req_id, '_wc_platform', $new_platform );
-			update_post_meta( $req_id, '_wc_meeting_link', $new_access );
-			if ( ! empty( $new_time ) ) {
-				update_post_meta( $req_id, '_wc_appointment_time', $new_time );
+			$new_access = 'video' === $consult_mode ? esc_url_raw( $selected_access ) : $selected_access;
+			$new_platform = sanitize_text_field( $chosen_platform['name'] ?? '' );
+			$old_status = $status;
+			$old_utc = $appointment_utc;
+			$reservation = WC_Scheduling::reserve( $req_id, $selected_consultant, $selected_date, $selected_slot, $selected_duration, $new_platform, $new_access );
+			if ( is_wp_error( $reservation ) ) {
+				$schedule_notice = $reservation->get_error_message();
+				$schedule_notice_type = 'error';
+			} else {
+				$status = WC_Status::STATUS_SCHEDULED;
+				$appointment_utc = $selected_slot;
+				$appointment_duration = $selected_duration;
+				$assigned_consultant_id = $selected_consultant;
+				$platform = $new_platform;
+				$meeting_link = $new_access;
+				$availability = WC_Scheduling::get_availability( $selected_consultant );
+				$consultant_timezone = $availability['base_timezone'] ?? 'UTC';
+				if ( ! in_array( $consultant_timezone, timezone_identifiers_list(), true ) ) {
+					$consultant_timezone = 'UTC';
+				}
+				$time_labels = WC_Scheduling::get_time_labels( $appointment_utc, $timezone, $selected_consultant );
+				$event = WC_Status::STATUS_SCHEDULED === $old_status ? 'rescheduled' : 'scheduled';
+				$email_result = WC_Booking_Handler::send_event_email( $event, array(
+					'request_id'            => $req_id,
+					'email'                  => $email,
+					'reference_id'           => $ref_id,
+					'name'                   => $name,
+					'consultation_type'      => $type_name,
+					'consult_mode'           => $mode_label,
+					'platform'               => $platform,
+					'appointment_local'      => $time_labels['patient'],
+					'appointment_consultant' => $time_labels['consultant'],
+					'meeting_link'           => $meeting_link,
+					'track_url'              => home_url( '/track-my-request/?ref=' . rawurlencode( $ref_id ) ),
+				) );
+				$schedule_notice = 'rescheduled' === $event
+					? esc_html__( 'Appointment rescheduled; the previous time is retained in the activity log.', 'wellness-consult' )
+					: esc_html__( 'Appointment scheduled successfully.', 'wellness-consult' );
+				if ( false === $email_result ) {
+					$email_delivery_failed = true;
+					$schedule_notice_type = 'error';
+				}
+				$appointment_time = DateTimeImmutable::createFromFormat( '!Y-m-d H:i:s', $appointment_utc, new DateTimeZone( 'UTC' ) )->setTimezone( new DateTimeZone( $consultant_timezone ) )->format( 'Y-m-d\TH:i' );
 			}
-
-			$from_status = $status;
-			$to_status   = 'scheduled';
-			if ( WC_Status::is_transition_allowed( $from_status, $to_status ) ) {
-				update_post_meta( $req_id, '_wc_status', $to_status );
-				$status = $to_status;
-			}
-
-			// Record platform in activity log (CR-1 Rule 4)
-			WC_Database::log( array(
-				'request_id'   => $req_id,
-				'reference_id' => $ref_id,
-				'action'       => 'appointment_scheduled',
-				'from_status'  => $from_status,
-				'to_status'    => $status,
-				'note'         => sprintf(
-					'Scheduled on platform: %s (Mode: %s). Access: %s.',
-					$new_platform,
-					$mode_label,
-					$new_access
-				),
-			) );
-
-			$platform         = $new_platform;
-			$meeting_link     = $new_access;
-			$appointment_time = $new_time;
-			$schedule_notice  = esc_html__( 'Appointment successfully scheduled and platform recorded.', 'wellness-consult' );
 		}
 	}
 
-	$proof_view_url = wp_nonce_url( admin_url( 'admin-post.php?action=wc_view_proof&request_id=' . $req_id ), 'wc_view_proof_' . $req_id );
+	// Administrative cancellation, completion, no-show, and manual refund actions.
+	if ( isset( $_POST['wc_request_action'] ) ) {
+		check_admin_referer( 'wc_request_action_' . $req_id, 'wc_request_action_nonce' );
+		$request_action = isset( $_POST['request_action'] ) && is_string( $_POST['request_action'] ) ? sanitize_key( wp_unslash( $_POST['request_action'] ) ) : '';
+		$reason = isset( $_POST['action_reason'] ) && is_string( $_POST['action_reason'] ) ? trim( sanitize_textarea_field( wp_unslash( $_POST['action_reason'] ) ) ) : '';
+		$is_assigned_consultant = ! $can_verify && absint( get_post_meta( $req_id, '_wc_consultant_id', true ) ) === $current_user_id;
+		$target_status = array(
+			'cancel'    => WC_Status::STATUS_CANCELLED,
+			'complete'  => WC_Status::STATUS_COMPLETED,
+			'no_show'   => WC_Status::STATUS_NO_SHOW,
+			'refund'    => WC_Status::STATUS_REFUNDED,
+		);
+		$allowed_action = isset( $target_status[ $request_action ] )
+			&& ( ( in_array( $request_action, array( 'complete', 'no_show' ), true ) && ( $can_verify || $is_assigned_consultant ) )
+				|| ( in_array( $request_action, array( 'cancel', 'refund' ), true ) && $can_verify ) );
+		if ( ! $allowed_action ) {
+			wp_die( esc_html__( 'You do not have permission to perform this request action.', 'wellness-consult' ), '', array( 'response' => 403 ) );
+		}
+		if ( in_array( $request_action, array( 'cancel', 'refund' ), true ) && '' === $reason ) {
+			$schedule_notice = esc_html__( 'A reason is required for this action.', 'wellness-consult' );
+			$schedule_notice_type = 'error';
+		} elseif ( in_array( $request_action, array( 'complete', 'no_show' ), true ) && WC_Status::STATUS_SCHEDULED !== $status ) {
+			$schedule_notice = esc_html__( 'Only scheduled consultations can be marked completed or no-show.', 'wellness-consult' );
+			$schedule_notice_type = 'error';
+		} elseif ( 'refund' === $request_action && $is_online_payment ) {
+			$schedule_notice = esc_html__( 'Manual refunds cannot be recorded for an online gateway payment.', 'wellness-consult' );
+			$schedule_notice_type = 'error';
+		} elseif ( 'refund' === $request_action && ( ! isset( $_POST['refund_amount'] ) || ! is_string( $_POST['refund_amount'] ) || ! preg_match( '/^\d+(?:\.\d{1,2})?$/', trim( wp_unslash( $_POST['refund_amount'] ) ) ) || (float) wp_unslash( $_POST['refund_amount'] ) <= 0 || (float) wp_unslash( $_POST['refund_amount'] ) > (float) ( $amount_received ?: $amount_expected ) ) ) {
+			$schedule_notice = esc_html__( 'Enter a positive refund amount no greater than the amount received.', 'wellness-consult' );
+			$schedule_notice_type = 'error';
+		} else {
+			$action_from_status = $status;
+			$note = 'cancel' === $request_action ? 'Cancellation reason: ' . $reason : ( 'refund' === $request_action ? 'Manual refund recorded. ' . $reason : ucfirst( str_replace( '_', ' ', $request_action ) ) . '.' );
+			$transition = WC_Status::change_status( $req_id, $target_status[ $request_action ], $note );
+			if ( is_wp_error( $transition ) ) {
+				$schedule_notice = $transition->get_error_message();
+				$schedule_notice_type = 'error';
+			} else {
+				$status = $target_status[ $request_action ];
+				$log_action = array(
+					'cancel'   => 'request_cancelled',
+					'complete' => 'consultation_completed',
+					'no_show'  => 'consultation_no_show',
+					'refund'   => 'manual_refund_recorded',
+				);
+				if ( 'cancel' === $request_action ) {
+					update_post_meta( $req_id, '_wc_cancellation_reason', $reason );
+				} elseif ( 'refund' === $request_action ) {
+					$refund_amount = (float) wp_unslash( $_POST['refund_amount'] );
+					update_post_meta( $req_id, '_wc_refund_amount', $refund_amount );
+					update_post_meta( $req_id, '_wc_refund_reason', $reason );
+					update_post_meta( $req_id, '_wc_refunded_by', $current_user_id );
+					update_post_meta( $req_id, '_wc_refunded_at', current_time( 'mysql', true ) );
+				}
+				WC_Database::log( array(
+					'request_id'   => $req_id,
+					'reference_id' => $ref_id,
+					'action'       => $log_action[ $request_action ],
+					'from_status'  => $action_from_status,
+					'to_status'    => $status,
+					'note'         => $note,
+				) );
+				$schedule_notice = array(
+					'cancel'   => esc_html__( 'Request cancelled.', 'wellness-consult' ),
+					'complete' => esc_html__( 'Consultation marked completed.', 'wellness-consult' ),
+					'no_show'  => esc_html__( 'Consultation marked as no-show.', 'wellness-consult' ),
+					'refund'   => esc_html__( 'Manual refund recorded.', 'wellness-consult' ),
+				)[ $request_action ];
+				if ( in_array( $request_action, array( 'cancel', 'complete' ), true ) ) {
+					$event = 'cancel' === $request_action ? 'cancelled' : 'completed';
+					$email_result = WC_Booking_Handler::send_event_email( $event, array(
+						'request_id'   => $req_id,
+						'email'        => $email,
+						'reference_id' => $ref_id,
+						'name'         => $name,
+						'reason'       => $reason,
+						'track_url'    => home_url( '/track-my-request/?ref=' . rawurlencode( $ref_id ) ),
+					) );
+					if ( false === $email_result ) {
+						$email_delivery_failed = true;
+						$schedule_notice_type = 'error';
+					}
+				}
+			}
+		}
+	}
+
+	$proof_view_url = WC_Proof_Viewer::get_view_url( $req_id, $current_proof_index );
+	global $wpdb;
+	$activity_table = $wpdb->prefix . 'wc_activity_log';
+	$request_activity = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT created_at, user_name, action, note FROM $activity_table WHERE request_id = %d ORDER BY id DESC LIMIT 20",
+			$req_id
+		)
+	);
+	foreach ( (array) $request_activity as $activity_entry ) {
+		if ( 'email_delivery' === $activity_entry->action && preg_match( '/:\s*failed\.$/', (string) $activity_entry->note ) ) {
+			$email_delivery_failed = true;
+			break;
+		}
+	}
 	$fraud_data = $can_verify ? WC_Fraud_Protection::get_request_flags( $req_id ) : array( 'flags' => array(), 'request_ids' => array() );
 	?>
 
@@ -439,6 +589,11 @@ if ( 'view' === $action && $req_id > 0 ) :
 		<?php if ( ! empty( $schedule_notice ) ) : ?>
 			<div class="notice notice-<?php echo esc_attr( $schedule_notice_type ); ?> is-dismissible" style="margin:15px 0;">
 				<p><?php echo esc_html( $schedule_notice ); ?></p>
+			</div>
+		<?php endif; ?>
+		<?php if ( $email_delivery_failed ) : ?>
+			<div class="notice notice-warning">
+				<p><?php esc_html_e( 'The email to the patient could not be sent. Please contact them manually.', 'wellness-consult' ); ?></p>
 			</div>
 		<?php endif; ?>
 
@@ -604,77 +759,167 @@ if ( 'view' === $action && $req_id > 0 ) :
 					<?php endif; ?>
 				</div>
 
-				<!-- Section 3: Scheduling Form (CR-1 Rule 4) -->
-				<div class="postbox" style="padding:16px;">
-					<h2 class="hndle" style="margin:0 0 12px 0; display:flex; align-items:center; gap:6px;">
-						<span class="dashicons dashicons-calendar-alt"></span>
-						<?php esc_html_e( 'Schedule Appointment (Assign Platform)', 'wellness-consult' ); ?>
-					</h2>
-					<p class="description" style="margin-top:0; margin-bottom:12px;">
-						<?php printf( esc_html__( 'Patient selected mode: %s. Platform options below are filtered for this mode.', 'wellness-consult' ), '<strong>' . esc_html( $mode_icon . ' ' . $mode_label ) . '</strong>' ); ?>
-					</p>
+				<?php if ( $can_schedule && in_array( $status, array( WC_Status::STATUS_PAID_AWAITING_SCHEDULING, WC_Status::STATUS_SCHEDULED ), true ) ) : ?>
+					<?php
+					$schedule_consultants = get_users( array(
+						'role__in' => array( 'wc_consultant', 'administrator' ),
+						'orderby'  => 'display_name',
+						'order'    => 'ASC',
+					) );
+					$requested_consultant = isset( $_GET['schedule_consultant'] ) ? absint( $_GET['schedule_consultant'] ) : $assigned_consultant_id;
+					if ( ! $requested_consultant && ! empty( $schedule_consultants ) ) {
+						$requested_consultant = absint( $schedule_consultants[0]->ID );
+					}
+					$consultant_ids = wp_list_pluck( $schedule_consultants, 'ID' );
+					if ( ! in_array( $requested_consultant, array_map( 'absint', $consultant_ids ), true ) ) {
+						$requested_consultant = 0;
+					}
+					$requested_availability = $requested_consultant ? WC_Scheduling::get_availability( $requested_consultant ) : array();
+					$requested_timezone = $requested_availability['base_timezone'] ?? 'UTC';
+					if ( ! in_array( $requested_timezone, timezone_identifiers_list(), true ) ) {
+						$requested_timezone = 'UTC';
+					}
+					$consultant_today = ( new DateTimeImmutable( 'now', new DateTimeZone( $requested_timezone ) ) )->format( 'Y-m-d' );
+					$requested_date = isset( $_GET['schedule_date'] ) && is_string( $_GET['schedule_date'] ) && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $_GET['schedule_date'] )
+						? sanitize_text_field( wp_unslash( $_GET['schedule_date'] ) )
+						: ( $appointment_utc && $requested_consultant
+							? DateTimeImmutable::createFromFormat( '!Y-m-d H:i:s', $appointment_utc, new DateTimeZone( 'UTC' ) )->setTimezone( new DateTimeZone( $requested_timezone ) )->format( 'Y-m-d' )
+							: $consultant_today );
+					$requested_duration = isset( $_GET['schedule_duration'] ) ? absint( $_GET['schedule_duration'] ) : $appointment_duration;
+					$requested_duration = $requested_duration >= 5 && $requested_duration <= 480 ? $requested_duration : $appointment_duration;
+					$available_slots = $requested_consultant
+						? WC_Scheduling::get_available_slots( $requested_consultant, $requested_date, $requested_duration, $req_id, $timezone )
+						: array();
+					$existing_time_labels = $appointment_utc && $assigned_consultant_id
+						? WC_Scheduling::get_time_labels( $appointment_utc, $timezone, $assigned_consultant_id )
+						: array( 'patient' => '', 'consultant' => '' );
+					$active_platforms = WC_Options::get_platforms_for_mode( $consult_mode, true );
+					?>
+					<div class="postbox" style="padding:16px;">
+						<h2 class="hndle" style="margin:0 0 12px 0;display:flex;align-items:center;gap:6px;">
+							<span class="dashicons dashicons-calendar-alt"></span>
+							<?php echo WC_Status::STATUS_SCHEDULED === $status ? esc_html__( 'Reschedule Appointment', 'wellness-consult' ) : esc_html__( 'Schedule Appointment', 'wellness-consult' ); ?>
+						</h2>
+						<p class="description"><?php printf( esc_html__( 'Mode: %1$s. Preferred patient time window: %2$s.', 'wellness-consult' ), esc_html( $mode_label ), esc_html( $window ? ucfirst( $window ) : __( 'Not specified', 'wellness-consult' ) ) ); ?></p>
+						<?php if ( $appointment_utc && $existing_time_labels['patient'] ) : ?>
+							<p><strong><?php esc_html_e( 'Current appointment:', 'wellness-consult' ); ?></strong><br>
+								<?php printf( esc_html__( 'Patient: %1$s | Consultant: %2$s', 'wellness-consult' ), esc_html( $existing_time_labels['patient'] ), esc_html( $existing_time_labels['consultant'] ) ); ?>
+							</p>
+						<?php endif; ?>
 
-					<form method="post" action="">
-						<?php wp_nonce_field( 'wc_schedule_action_' . $req_id, 'wc_schedule_nonce' ); ?>
-						<input type="hidden" name="wc_schedule_request" value="1" />
+						<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
+							<input type="hidden" name="page" value="wc-all-requests">
+							<input type="hidden" name="action" value="view">
+							<input type="hidden" name="id" value="<?php echo esc_attr( $req_id ); ?>">
+							<label><?php esc_html_e( 'Consultant', 'wellness-consult' ); ?><br>
+								<select name="schedule_consultant" required>
+									<option value=""><?php esc_html_e( 'Select consultant', 'wellness-consult' ); ?></option>
+									<?php foreach ( $schedule_consultants as $schedule_consultant ) : ?>
+										<option value="<?php echo esc_attr( $schedule_consultant->ID ); ?>" <?php selected( $requested_consultant, $schedule_consultant->ID ); ?>><?php echo esc_html( $schedule_consultant->display_name ); ?></option>
+									<?php endforeach; ?>
+								</select>
+							</label>
+							<label><?php esc_html_e( 'Date', 'wellness-consult' ); ?><br>
+								<input type="date" name="schedule_date" value="<?php echo esc_attr( $requested_date ); ?>" required>
+							</label>
+							<label><?php esc_html_e( 'Duration (minutes)', 'wellness-consult' ); ?><br>
+								<input type="number" name="schedule_duration" min="5" max="480" step="5" value="<?php echo esc_attr( $requested_duration ); ?>" required>
+							</label>
+							<button type="submit" class="button"><?php esc_html_e( 'Show available times', 'wellness-consult' ); ?></button>
+						</form>
 
-						<table class="form-table" role="presentation">
-							<tr>
-								<th scope="row"><label for="schedule_platform"><?php esc_html_e( 'Delivery Platform *', 'wellness-consult' ); ?></label></th>
-								<td>
-									<select name="schedule_platform" id="schedule_platform" class="regular-text" required>
-										<option value=""><?php esc_html_e( '— Select Delivery Platform —', 'wellness-consult' ); ?></option>
-										<?php
-										$filtered_platforms = WC_Options::get_platforms_for_mode( $consult_mode, false );
-										foreach ( $filtered_platforms as $p_key => $p_info ) :
-										?>
-											<option value="<?php echo esc_attr( $p_info['name'] ); ?>" <?php selected( $platform, $p_info['name'] ); ?>>
-												<?php echo esc_html( $p_info['name'] . ( empty( $p_info['is_active'] ) ? ' (Inactive)' : '' ) ); ?>
-											</option>
-										<?php endforeach; ?>
-									</select>
-									<p class="description"><?php esc_html_e( 'Communication channel used by doctor to deliver this consultation.', 'wellness-consult' ); ?></p>
-								</td>
-							</tr>
-							<tr>
-								<th scope="row">
-									<label for="meeting_link_or_handle">
-										<?php
-										if ( 'video' === $consult_mode ) {
-											esc_html_e( 'Meeting URL Link *', 'wellness-consult' );
-										} else {
-											esc_html_e( 'Phone Number or Handle to Use *', 'wellness-consult' );
-										}
-										?>
-									</label>
-								</th>
-								<td>
-									<input type="text" name="meeting_link_or_handle" id="meeting_link_or_handle" value="<?php echo esc_attr( $meeting_link ); ?>" class="large-text" placeholder="<?php echo 'video' === $consult_mode ? 'https://meet.google.com/abc-defg-hij or Zoom room link' : '+15551234567 or @telegram_username'; ?>" required />
-									<p class="description">
-										<?php
-										if ( 'video' === $consult_mode ) {
-											esc_html_e( 'For video consultations, paste the video conference URL.', 'wellness-consult' );
-										} else {
-											esc_html_e( 'For voice and chat consultations, enter the phone number or username handle to connect.', 'wellness-consult' );
-										}
-										?>
-									</p>
-								</td>
-							</tr>
-							<tr>
-								<th scope="row"><label for="appointment_datetime"><?php esc_html_e( 'Appointment Date & Time', 'wellness-consult' ); ?></label></th>
-								<td>
-									<input type="datetime-local" name="appointment_datetime" id="appointment_datetime" value="<?php echo esc_attr( $appointment_time ); ?>" />
-									<p class="description"><?php esc_html_e( 'Session appointment time in UTC or local base timezone.', 'wellness-consult' ); ?></p>
-								</td>
-							</tr>
-						</table>
+						<?php if ( empty( $schedule_consultants ) ) : ?>
+							<div class="notice notice-warning inline"><p><?php esc_html_e( 'No consultant accounts are available. Add a consultant and configure their availability first.', 'wellness-consult' ); ?></p></div>
+						<?php elseif ( $requested_consultant && empty( $available_slots ) ) : ?>
+							<div class="notice notice-info inline"><p><?php esc_html_e( 'No free slots are available for this consultant, date, and duration. Check availability settings or choose another date.', 'wellness-consult' ); ?></p></div>
+						<?php endif; ?>
+						<?php if ( empty( $active_platforms ) ) : ?>
+							<div class="notice notice-warning inline">
+								<p><?php esc_html_e( 'No active platform is configured for this consultation mode. Enable one under Consultations > Settings before scheduling.', 'wellness-consult' ); ?></p>
+							</div>
+						<?php endif; ?>
 
-						<p class="submit" style="margin-top:12px; margin-bottom:0;">
-							<input type="submit" class="button button-primary" value="<?php esc_attr_e( 'Save & Record Platform', 'wellness-consult' ); ?>" />
-						</p>
-					</form>
-				</div>
+						<form method="post" action="">
+							<?php wp_nonce_field( 'wc_schedule_action_' . $req_id, 'wc_schedule_nonce' ); ?>
+							<input type="hidden" name="wc_schedule_request" value="1">
+							<input type="hidden" name="schedule_consultant" value="<?php echo esc_attr( $requested_consultant ); ?>">
+							<input type="hidden" name="schedule_date" value="<?php echo esc_attr( $requested_date ); ?>">
+							<input type="hidden" name="schedule_duration" value="<?php echo esc_attr( $requested_duration ); ?>">
+							<table class="form-table" role="presentation">
+								<tr>
+									<th scope="row"><label for="schedule_slot"><?php esc_html_e( 'Available start time (patient and consultant time zones)', 'wellness-consult' ); ?></label></th>
+									<td>
+										<select name="schedule_slot" id="schedule_slot" class="regular-text" required <?php disabled( empty( $available_slots ) ); ?>>
+											<option value=""><?php esc_html_e( 'Select an available time', 'wellness-consult' ); ?></option>
+											<?php foreach ( $available_slots as $slot_utc => $slot_label ) : ?>
+												<option value="<?php echo esc_attr( $slot_utc ); ?>" <?php selected( $appointment_utc, $slot_utc ); ?>><?php echo esc_html( $slot_label ); ?></option>
+											<?php endforeach; ?>
+										</select>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><label for="schedule_platform"><?php esc_html_e( 'Active platform', 'wellness-consult' ); ?></label></th>
+									<td>
+										<select name="schedule_platform" id="schedule_platform" class="regular-text" required>
+											<option value=""><?php esc_html_e( 'Select platform', 'wellness-consult' ); ?></option>
+											<?php foreach ( $active_platforms as $platform_key => $platform_info ) : ?>
+												<option value="<?php echo esc_attr( $platform_key ); ?>" <?php selected( $platform, $platform_info['name'] ?? '' ); ?>><?php echo esc_html( $platform_info['name'] ?? $platform_key ); ?></option>
+											<?php endforeach; ?>
+										</select>
+										<p class="description"><?php esc_html_e( 'Options are limited to active platforms for the selected consultation mode.', 'wellness-consult' ); ?></p>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row"><label for="meeting_link_or_handle"><?php echo 'video' === $consult_mode ? esc_html__( 'Meeting link (required)', 'wellness-consult' ) : esc_html__( 'Phone number or username (required)', 'wellness-consult' ); ?></label></th>
+									<td><input type="text" name="meeting_link_or_handle" id="meeting_link_or_handle" value="<?php echo esc_attr( $meeting_link ); ?>" class="regular-text" required></td>
+								</tr>
+							</table>
+							<p class="submit"><button type="submit" class="button button-primary" <?php disabled( empty( $available_slots ) || empty( $active_platforms ) ); ?>><?php echo WC_Status::STATUS_SCHEDULED === $status ? esc_html__( 'Save Reschedule', 'wellness-consult' ) : esc_html__( 'Schedule Appointment', 'wellness-consult' ); ?></button></p>
+						</form>
+					</div>
+				<?php endif; ?>
+
+				<?php
+				$can_act_on_appointment = $can_verify || ( absint( $assigned_consultant_id ) === $current_user_id );
+				$can_cancel_or_refund = $can_verify;
+				?>
+				<?php if ( $can_act_on_appointment && in_array( $status, array( WC_Status::STATUS_PAID_AWAITING_SCHEDULING, WC_Status::STATUS_SCHEDULED, WC_Status::STATUS_CANCELLED ), true ) ) : ?>
+					<div class="postbox" style="padding:16px;margin-top:16px;">
+						<h2 class="hndle"><?php esc_html_e( 'Request Actions', 'wellness-consult' ); ?></h2>
+						<?php if ( WC_Status::STATUS_SCHEDULED === $status ) : ?>
+							<?php foreach ( array( 'complete' => __( 'Mark completed', 'wellness-consult' ), 'no_show' => __( 'Mark no-show', 'wellness-consult' ) ) as $action_key => $action_label ) : ?>
+								<form method="post" style="display:inline-block;margin:8px 8px 0 0;">
+									<?php wp_nonce_field( 'wc_request_action_' . $req_id, 'wc_request_action_nonce' ); ?>
+									<input type="hidden" name="wc_request_action" value="1">
+									<input type="hidden" name="request_action" value="<?php echo esc_attr( $action_key ); ?>">
+									<button type="submit" class="button button-secondary"><?php echo esc_html( $action_label ); ?></button>
+								</form>
+							<?php endforeach; ?>
+						<?php endif; ?>
+						<?php if ( $can_cancel_or_refund && in_array( $status, array( WC_Status::STATUS_PAID_AWAITING_SCHEDULING, WC_Status::STATUS_SCHEDULED ), true ) ) : ?>
+							<form method="post" style="margin-top:12px;">
+								<?php wp_nonce_field( 'wc_request_action_' . $req_id, 'wc_request_action_nonce' ); ?>
+								<input type="hidden" name="wc_request_action" value="1">
+								<input type="hidden" name="request_action" value="cancel">
+								<label for="action_cancel_reason"><strong><?php esc_html_e( 'Cancellation reason', 'wellness-consult' ); ?></strong></label>
+								<textarea id="action_cancel_reason" name="action_reason" class="large-text" rows="2" required></textarea>
+								<button type="submit" class="button button-secondary" onclick="return confirm('<?php echo esc_attr__( 'Cancel this consultation request?', 'wellness-consult' ); ?>');"><?php esc_html_e( 'Cancel request', 'wellness-consult' ); ?></button>
+							</form>
+						<?php endif; ?>
+						<?php if ( $can_cancel_or_refund && ! $is_online_payment && in_array( $status, array( WC_Status::STATUS_PAID_AWAITING_SCHEDULING, WC_Status::STATUS_SCHEDULED, WC_Status::STATUS_CANCELLED ), true ) ) : ?>
+							<form method="post" style="margin-top:12px;">
+								<?php wp_nonce_field( 'wc_request_action_' . $req_id, 'wc_request_action_nonce' ); ?>
+								<input type="hidden" name="wc_request_action" value="1">
+								<input type="hidden" name="request_action" value="refund">
+								<label for="manual_refund_amount"><strong><?php esc_html_e( 'Manual refund amount (USD)', 'wellness-consult' ); ?></strong></label>
+								<input type="number" id="manual_refund_amount" name="refund_amount" min="0.01" max="<?php echo esc_attr( $amount_received ?: $amount_expected ); ?>" step="0.01" value="<?php echo esc_attr( $refund_amount ? number_format( (float) $refund_amount, 2, '.', '' ) : '' ); ?>" required>
+								<label for="manual_refund_reason"><strong><?php esc_html_e( 'Refund note / reason', 'wellness-consult' ); ?></strong></label>
+								<textarea id="manual_refund_reason" name="action_reason" class="large-text" rows="2" required></textarea>
+								<button type="submit" class="button button-secondary"><?php esc_html_e( 'Record manual refund', 'wellness-consult' ); ?></button>
+							</form>
+						<?php endif; ?>
+					</div>
+				<?php endif; ?>
 			</div>
 
 			<!-- Right Column: Payment Proof & Security Records -->
@@ -803,7 +1048,18 @@ if ( 'view' === $action && $req_id > 0 ) :
 					<table style="width:100%;margin-bottom:14px;font-size:13px;line-height:1.6;">
 						<tr>
 							<td style="color:#64748b;width:140px;"><?php esc_html_e( 'Payment Method:', 'wellness-consult' ); ?></td>
-							<td><strong><?php echo esc_html( $pay_method_name ? $pay_method_name : ucfirst( $pay_method ) ); ?></strong></td>
+							<td>
+								<strong><?php echo esc_html( $pay_method_name ? $pay_method_name : ucfirst( $pay_method ) ); ?></strong>
+								<div class="description">
+									<?php
+									echo esc_html(
+										$is_online_payment
+											? __( 'Online payment', 'wellness-consult' )
+											: WC_Options::get_manual_payment_type_label( $pay_method_type ? $pay_method_type : 'bank' )
+									);
+									?>
+								</div>
+							</td>
 						</tr>
 						<tr>
 							<td style="color:#64748b;"><?php esc_html_e( 'Amount Expected:', 'wellness-consult' ); ?></td>
@@ -833,18 +1089,27 @@ if ( 'view' === $action && $req_id > 0 ) :
 
 					<!-- Screenshot Proof Viewer -->
 					<?php if ( ! empty( $proof_file ) ) : ?>
-						<div class="notice notice-info inline" style="padding:12px;margin:0 0 16px;text-align:center;">
+						<?php
+						$proof_filename = ! empty( $current_proof_entry['filename'] )
+							? $current_proof_entry['filename']
+							: basename( $proof_file );
+						?>
+						<div class="notice notice-info inline wc-proof-viewer">
 							<?php if ( in_array( $current_proof_mime, array( 'image/jpeg', 'image/png' ), true ) ) : ?>
-								<img src="<?php echo esc_url( $proof_view_url ); ?>" alt="<?php esc_attr_e( 'Submitted payment proof', 'wellness-consult' ); ?>" style="display:block;max-width:100%;max-height:360px;width:auto;height:auto;margin:0 auto 10px;">
+								<a class="wc-proof-preview-link" href="<?php echo esc_url( $proof_view_url ); ?>" target="_blank" rel="noopener noreferrer" aria-label="<?php esc_attr_e( 'Open full-size submitted payment proof in a new tab', 'wellness-consult' ); ?>">
+									<img class="wc-proof-preview" src="<?php echo esc_url( $proof_view_url ); ?>" alt="<?php esc_attr_e( 'Submitted payment proof preview', 'wellness-consult' ); ?>" onerror="this.hidden=true;this.parentNode.nextElementSibling.hidden=false;">
+								</a>
+								<p class="wc-proof-load-error" role="alert" hidden><?php esc_html_e( 'Proof file could not be loaded', 'wellness-consult' ); ?></p>
 							<?php else : ?>
-								<span class="dashicons dashicons-media-document" style="font-size:32px;width:32px;height:32px;margin-bottom:4px;"></span>
+								<span class="dashicons dashicons-media-document wc-proof-pdf-icon" aria-hidden="true"></span>
+								<p class="wc-proof-filename"><?php echo esc_html( $proof_filename ); ?></p>
 							<?php endif; ?>
-							<p style="margin:2px 0 10px 0;font-size:12px;word-break:break-all;">
-								<strong><?php echo esc_html( basename( $proof_file ) ); ?></strong>
-							</p>
-							<a href="<?php echo esc_url( $proof_view_url ); ?>" target="_blank" class="button button-secondary button-small">
-								<span class="dashicons dashicons-visibility" style="vertical-align:text-top;font-size:15px;"></span>
-								<?php esc_html_e( 'Open Proof (Secure Handler)', 'wellness-consult' ); ?>
+							<?php if ( in_array( $current_proof_mime, array( 'image/jpeg', 'image/png' ), true ) ) : ?>
+								<p class="wc-proof-filename"><?php echo esc_html( $proof_filename ); ?></p>
+							<?php endif; ?>
+							<a href="<?php echo esc_url( $proof_view_url ); ?>" target="_blank" rel="noopener noreferrer" class="button button-secondary button-small">
+								<span class="dashicons dashicons-visibility" aria-hidden="true"></span>
+								<?php esc_html_e( 'Open Proof', 'wellness-consult' ); ?>
 							</a>
 						</div>
 					<?php else : ?>
@@ -1041,15 +1306,7 @@ if ( 'view' === $action && $req_id > 0 ) :
 									<strong>Upload #<?php echo esc_html( $idx + 1 ); ?>:</strong> <?php echo esc_html( $pentry['uploaded_at'] ?? '—' ); ?><br>
 									<span style="font-family:monospace;font-size:11px;color:#64748b;">SHA-256: <?php echo esc_html( substr( $pentry['hash'] ?? '', 0, 16 ) ); ?>...</span>
 									<?php
-									$history_proof_url = add_query_arg(
-										array(
-											'action'      => 'wc_view_proof',
-											'request_id'  => $req_id,
-											'proof_index' => absint( $idx ),
-										),
-										admin_url( 'admin-post.php' )
-									);
-									$history_proof_url = wp_nonce_url( $history_proof_url, 'wc_view_proof_' . $req_id );
+									$history_proof_url = WC_Proof_Viewer::get_view_url( $req_id, $idx );
 									?>
 									<a class="button button-small" href="<?php echo esc_url( $history_proof_url ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'View proof', 'wellness-consult' ); ?></a>
 								</li>
@@ -1076,6 +1333,30 @@ if ( 'view' === $action && $req_id > 0 ) :
 						</tr>
 					</table>
 				</div>
+
+				<section class="postbox wc-request-activity" aria-labelledby="wc-request-activity-title">
+					<div class="inside">
+						<h2 id="wc-request-activity-title" class="hndle"><?php esc_html_e( 'Activity for this request', 'wellness-consult' ); ?></h2>
+						<?php if ( ! empty( $request_activity ) ) : ?>
+							<ol class="wc-request-activity-list">
+								<?php foreach ( $request_activity as $activity_entry ) : ?>
+									<li>
+										<div class="wc-request-activity-meta">
+											<time><?php echo esc_html( $activity_entry->created_at ); ?> UTC</time>
+											<span><?php echo esc_html( $activity_entry->user_name ? $activity_entry->user_name : __( 'System', 'wellness-consult' ) ); ?></span>
+										</div>
+										<strong><?php echo esc_html( ucwords( str_replace( '_', ' ', sanitize_key( $activity_entry->action ) ) ) ); ?></strong>
+										<?php if ( '' !== (string) $activity_entry->note ) : ?>
+											<p><?php echo esc_html( $activity_entry->note ); ?></p>
+										<?php endif; ?>
+									</li>
+								<?php endforeach; ?>
+							</ol>
+						<?php else : ?>
+							<p class="description"><?php esc_html_e( 'No activity has been recorded for this request.', 'wellness-consult' ); ?></p>
+						<?php endif; ?>
+					</div>
+				</section>
 			</div>
 		</div>
 	</div>
@@ -1086,7 +1367,9 @@ endif;
 
 // List View
 $selected_status = isset( $_GET['status_filter'] ) ? sanitize_key( wp_unslash( $_GET['status_filter'] ) ) : '';
+$selected_booking_filter = $is_admin && isset( $_GET['booking_filter'] ) ? sanitize_key( wp_unslash( $_GET['booking_filter'] ) ) : '';
 $selected_mode   = isset( $_GET['mode_filter'] ) ? sanitize_key( wp_unslash( $_GET['mode_filter'] ) ) : '';
+$selected_appointment_filter = isset( $_GET['appointment_filter'] ) ? sanitize_key( wp_unslash( $_GET['appointment_filter'] ) ) : '';
 $search_term     = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
 
 $paged    = isset( $_GET['paged'] ) ? max( 1, absint( $_GET['paged'] ) ) : 1;
@@ -1094,7 +1377,7 @@ $per_page = 20;
 
 $query_args = array(
 	'post_type'      => 'wc_request',
-	'post_status'    => 'publish',
+	'post_status'    => 'unpaid_drafts' === $selected_booking_filter ? 'draft' : 'publish',
 	'posts_per_page' => $per_page,
 	'paged'          => $paged,
 	'orderby'        => 'date',
@@ -1102,6 +1385,13 @@ $query_args = array(
 );
 
 $meta_query = array();
+
+if ( 'unpaid_drafts' === $selected_booking_filter ) {
+	$meta_query[] = array(
+		'key'   => '_wc_is_draft',
+		'value' => '1',
+	);
+}
 
 if ( ! empty( $selected_status ) ) {
 	$meta_query[] = array(
@@ -1114,6 +1404,35 @@ if ( ! empty( $selected_mode ) ) {
 	$meta_query[] = array(
 		'key'   => '_wc_consult_mode',
 		'value' => $selected_mode,
+	);
+}
+
+if ( in_array( $selected_appointment_filter, array( 'today', 'tomorrow', 'this_week' ), true ) ) {
+	$site_timezone = function_exists( 'wp_timezone' ) ? wp_timezone() : new DateTimeZone( wp_timezone_string() ?: 'UTC' );
+	$now_local = new DateTimeImmutable( 'now', $site_timezone );
+	if ( 'today' === $selected_appointment_filter ) {
+		$range_start_local = $now_local->setTime( 0, 0 );
+		$range_end_local = $range_start_local->modify( '+1 day' );
+	} elseif ( 'tomorrow' === $selected_appointment_filter ) {
+		$range_start_local = $now_local->setTime( 0, 0 )->modify( '+1 day' );
+		$range_end_local = $range_start_local->modify( '+1 day' );
+	} else {
+		$range_start_local = $now_local->setTime( 0, 0 )->modify( 'monday this week' );
+		$range_end_local = $range_start_local->modify( '+1 week' );
+	}
+	$range_start = $range_start_local->setTimezone( new DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+	$range_end = $range_end_local->setTimezone( new DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+	$meta_query[] = array(
+		'key'     => '_wc_appointment_utc',
+		'value'   => $range_start,
+		'compare' => '>=',
+		'type'    => 'DATETIME',
+	);
+	$meta_query[] = array(
+		'key'     => '_wc_appointment_utc',
+		'value'   => $range_end,
+		'compare' => '<',
+		'type'    => 'DATETIME',
 	);
 }
 
@@ -1142,10 +1461,37 @@ $all_countries  = WC_Options::get_all_iso_countries();
 	<h1 class="wp-heading-inline"><?php esc_html_e( 'Consultation Requests', 'wellness-consult' ); ?></h1>
 	<hr class="wp-header-end">
 
-	<!-- Search & Filters Bar (CR-1: Status, Mode, Search) -->
-	<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" style="margin: 15px 0; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+	<?php if ( isset( $_GET['deleted'] ) ) : ?>
+		<?php $delete_log_errors = isset( $_GET['delete_log_errors'] ) ? absint( $_GET['delete_log_errors'] ) : 0; ?>
+		<div class="notice notice-<?php echo $delete_log_errors ? 'warning' : 'success'; ?> is-dismissible"><p>
+			<?php
+			$deleted_count = isset( $_GET['deleted_count'] ) ? absint( $_GET['deleted_count'] ) : 0;
+			if ( $delete_log_errors ) {
+				printf(
+					esc_html( _n( '%1$d request was deleted, but its audit entry could not be recorded.', '%1$d requests were deleted, but %2$d audit entries could not be recorded.', $deleted_count, 'wellness-consult' ) ),
+					$deleted_count,
+					$delete_log_errors
+				);
+			} else {
+				printf(
+					esc_html( _n( '%d request permanently deleted.', '%d requests permanently deleted.', $deleted_count, 'wellness-consult' ) ),
+					$deleted_count
+				);
+			}
+			?>
+		</p></div>
+	<?php endif; ?>
+
+	<!-- Search & Filters Bar -->
+	<form class="wc-request-filters" method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>">
 		<input type="hidden" name="page" value="wc-all-requests" />
 
+		<select name="booking_filter" aria-label="<?php esc_attr_e( 'Request visibility', 'wellness-consult' ); ?>">
+			<option value="" <?php selected( $selected_booking_filter, '' ); ?>><?php esc_html_e( 'Submitted requests', 'wellness-consult' ); ?></option>
+			<?php if ( $is_admin ) : ?>
+				<option value="unpaid_drafts" <?php selected( $selected_booking_filter, 'unpaid_drafts' ); ?>><?php esc_html_e( 'Unpaid drafts', 'wellness-consult' ); ?></option>
+			<?php endif; ?>
+		</select>
 		<select name="status_filter">
 			<option value=""><?php esc_html_e( 'All Statuses', 'wellness-consult' ); ?></option>
 			<?php foreach ( $statuses as $k => $label ) : ?>
@@ -1160,82 +1506,145 @@ $all_countries  = WC_Options::get_all_iso_countries();
 			<option value="video" <?php selected( $selected_mode, 'video' ); ?>>📹 <?php esc_html_e( 'Video Call', 'wellness-consult' ); ?></option>
 		</select>
 
+		<select name="appointment_filter">
+			<option value=""><?php esc_html_e( 'All Appointment Dates', 'wellness-consult' ); ?></option>
+			<option value="today" <?php selected( $selected_appointment_filter, 'today' ); ?>><?php esc_html_e( 'Today', 'wellness-consult' ); ?></option>
+			<option value="tomorrow" <?php selected( $selected_appointment_filter, 'tomorrow' ); ?>><?php esc_html_e( 'Tomorrow', 'wellness-consult' ); ?></option>
+			<option value="this_week" <?php selected( $selected_appointment_filter, 'this_week' ); ?>><?php esc_html_e( 'This week', 'wellness-consult' ); ?></option>
+		</select>
+
 		<input type="search" name="s" value="<?php echo esc_attr( $search_term ); ?>" placeholder="<?php esc_attr_e( 'Search by Reference ID / Alias...', 'wellness-consult' ); ?>" />
 		<input type="submit" class="button" value="<?php esc_attr_e( 'Filter Requests', 'wellness-consult' ); ?>" />
-		<?php if ( ! empty( $selected_status ) || ! empty( $selected_mode ) || ! empty( $search_term ) ) : ?>
+		<?php if ( ! empty( $selected_status ) || ! empty( $selected_mode ) || ! empty( $selected_appointment_filter ) || ! empty( $search_term ) || ! empty( $selected_booking_filter ) ) : ?>
 			<a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-all-requests' ) ); ?>" class="button"><?php esc_html_e( 'Reset Filters', 'wellness-consult' ); ?></a>
 		<?php endif; ?>
 	</form>
 
 	<?php if ( $requests_query->have_posts() ) : ?>
-		<table class="wp-list-table widefat fixed striped">
-			<thead>
-				<tr>
-					<th scope="col" style="width:160px;"><?php esc_html_e( 'Reference ID', 'wellness-consult' ); ?></th>
-					<th scope="col"><?php esc_html_e( 'Name or Alias', 'wellness-consult' ); ?></th>
-					<th scope="col"><?php esc_html_e( 'Package', 'wellness-consult' ); ?></th>
-					<th scope="col" style="width:130px;"><?php esc_html_e( 'Mode', 'wellness-consult' ); ?></th>
-					<th scope="col" style="width:100px;"><?php esc_html_e( 'Fee (USD)', 'wellness-consult' ); ?></th>
-					<th scope="col" style="width:120px;"><?php esc_html_e( 'Country', 'wellness-consult' ); ?></th>
-					<th scope="col" style="width:150px;"><?php esc_html_e( 'Status', 'wellness-consult' ); ?></th>
-					<th scope="col" style="width:140px;"><?php esc_html_e( 'Submitted Date', 'wellness-consult' ); ?></th>
-					<th scope="col" style="width:110px;"><?php esc_html_e( 'Actions', 'wellness-consult' ); ?></th>
-				</tr>
-			</thead>
-			<tbody>
-				<?php
-				while ( $requests_query->have_posts() ) :
-					$requests_query->the_post();
-					$cur_id    = get_the_ID();
-					$ref_id    = get_post_meta( $cur_id, '_wc_reference_id', true );
-					$name      = get_post_meta( $cur_id, '_wc_name', true );
-					$status    = get_post_meta( $cur_id, '_wc_status', true );
-					$type_name = get_post_meta( $cur_id, '_wc_type_name', true );
-					$cur_mode  = get_post_meta( $cur_id, '_wc_consult_mode', true );
-					if ( empty( $cur_mode ) ) {
-						$cur_mode = 'chat';
-					}
-					$fee_usd   = get_post_meta( $cur_id, '_wc_fee_usd', true );
-					$country   = get_post_meta( $cur_id, '_wc_country', true );
-					$p_method  = get_post_meta( $cur_id, '_wc_payment_method', true );
-					$p_meth_id = get_post_meta( $cur_id, '_wc_payment_method_id', true );
-					$is_online_row = ( 'stripe' === $p_method || 'stripe' === $p_meth_id || 'paypal' === $p_method || 'paypal' === $p_meth_id );
-					$row_fraud_data = $can_verify ? WC_Fraud_Protection::get_request_flags( $cur_id ) : array( 'flags' => array() );
-					?>
-					<tr>
-						<td><code><strong><?php echo esc_html( $ref_id ? $ref_id : get_the_title() ); ?></strong></code></td>
-						<td><strong><?php echo esc_html( $name ? $name : '—' ); ?></strong></td>
-						<td><?php echo esc_html( $type_name ? $type_name : '—' ); ?></td>
-						<td>
-							<strong><?php echo esc_html( WC_Options::get_mode_icon( $cur_mode ) . ' ' . WC_Options::get_mode_label( $cur_mode ) ); ?></strong>
-						</td>
-						<td><strong>$<?php echo esc_html( number_format( (float) $fee_usd, 2 ) ); ?></strong></td>
-						<td><?php echo esc_html( $all_countries[ $country ] ?? ( $country ? $country : '—' ) ); ?></td>
-						<td>
-							<span class="badge" style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:4px;font-weight:700;font-size:11px;">
-								<?php echo esc_html( WC_Status::get_label( $status ) ); ?>
-							</span>
-							<?php if ( $is_online_row ) : ?>
-								<span style="display:block;font-size:10px;color:#0284c7;font-weight:600;margin-top:2px;">
-									<?php echo ( 'stripe' === $p_method || 'stripe' === $p_meth_id ) ? '⚡ Stripe' : '⚡ PayPal'; ?>
-								</span>
+		<div class="wc-request-table-container">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="wc-request-bulk-form" onsubmit="return confirm('<?php echo esc_attr__( 'Permanently delete the selected requests and their proof files?', 'wellness-consult' ); ?>');">
+				<input type="hidden" name="action" value="wc_bulk_delete_requests">
+				<?php wp_nonce_field( 'wc_bulk_delete_requests', 'wc_bulk_delete_nonce' ); ?>
+				<div class="wc-request-bulk-actions">
+					<?php if ( $can_delete_requests ) : ?>
+						<label for="wc-bulk-request-action" class="screen-reader-text"><?php esc_html_e( 'Bulk action', 'wellness-consult' ); ?></label>
+						<select id="wc-bulk-request-action" name="wc_bulk_request_action">
+							<option value=""><?php esc_html_e( 'Bulk actions', 'wellness-consult' ); ?></option>
+							<option value="delete"><?php esc_html_e( 'Delete permanently', 'wellness-consult' ); ?></option>
+						</select>
+						<button type="submit" class="button"><?php esc_html_e( 'Apply', 'wellness-consult' ); ?></button>
+					<?php endif; ?>
+				</div>
+				<table class="wp-list-table widefat striped wc-requests-table">
+					<thead>
+						<tr>
+							<?php if ( $can_delete_requests ) : ?>
+								<th scope="col" class="manage-column column-cb check-column"><input type="checkbox" class="wc-request-select-all" aria-label="<?php esc_attr_e( 'Select all requests', 'wellness-consult' ); ?>"></th>
 							<?php endif; ?>
-							<?php if ( ! empty( $row_fraud_data['flags'] ) ) : ?>
-								<span class="notice notice-warning inline" title="<?php echo esc_attr( implode( '; ', $row_fraud_data['flags'] ) ); ?>">
-									<?php esc_html_e( 'Review flags', 'wellness-consult' ); ?>
-								</span>
-							<?php endif; ?>
-						</td>
-						<td><code><?php echo esc_html( get_the_date( 'Y-m-d H:i' ) ); ?></code></td>
-						<td>
-							<a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-all-requests&action=view&id=' . $cur_id ) ); ?>" class="button button-small">
-								<?php esc_html_e( 'View Details', 'wellness-consult' ); ?>
-							</a>
-						</td>
-					</tr>
-				<?php endwhile; ?>
-			</tbody>
-		</table>
+							<th scope="col" class="wc-request-col-request"><?php esc_html_e( 'Request', 'wellness-consult' ); ?></th>
+							<th scope="col" class="wc-request-col-patient"><?php esc_html_e( 'Patient', 'wellness-consult' ); ?></th>
+							<th scope="col" class="wc-request-col-consultation"><?php esc_html_e( 'Consultation', 'wellness-consult' ); ?></th>
+							<th scope="col" class="wc-request-col-fee"><?php esc_html_e( 'Fee (USD)', 'wellness-consult' ); ?></th>
+							<th scope="col" class="wc-request-col-appointment"><?php esc_html_e( 'Appointment', 'wellness-consult' ); ?></th>
+							<th scope="col" class="wc-request-col-consultant"><?php esc_html_e( 'Consultant', 'wellness-consult' ); ?></th>
+							<th scope="col" class="wc-request-col-status"><?php esc_html_e( 'Status', 'wellness-consult' ); ?></th>
+							<th scope="col" class="wc-request-col-actions"><?php esc_html_e( 'Actions', 'wellness-consult' ); ?></th>
+						</tr>
+					</thead>
+					<tbody>
+						<?php
+						while ( $requests_query->have_posts() ) :
+							$requests_query->the_post();
+							$cur_id    = get_the_ID();
+							$ref_id    = get_post_meta( $cur_id, '_wc_reference_id', true );
+							$name      = get_post_meta( $cur_id, '_wc_name', true );
+							$status    = get_post_meta( $cur_id, '_wc_status', true );
+							$type_name = get_post_meta( $cur_id, '_wc_type_name', true );
+							$cur_mode  = get_post_meta( $cur_id, '_wc_consult_mode', true );
+							if ( empty( $cur_mode ) ) {
+								$cur_mode = 'chat';
+							}
+							$fee_usd   = get_post_meta( $cur_id, '_wc_fee_usd', true );
+							$country   = get_post_meta( $cur_id, '_wc_country', true );
+							$row_appointment_utc = WC_Scheduling::get_request_utc( $cur_id );
+							$row_consultant_id = absint( get_post_meta( $cur_id, '_wc_consultant_id', true ) );
+							$row_consultant = $row_consultant_id ? get_userdata( $row_consultant_id ) : false;
+							$row_platform = get_post_meta( $cur_id, '_wc_platform', true );
+							$row_time_labels = $row_appointment_utc && $row_consultant_id
+								? WC_Scheduling::get_time_labels( $row_appointment_utc, get_post_meta( $cur_id, '_wc_timezone', true ) ?: 'UTC', $row_consultant_id )
+								: array( 'patient' => '', 'consultant' => '' );
+							$p_method  = get_post_meta( $cur_id, '_wc_payment_method', true );
+							$p_meth_id = get_post_meta( $cur_id, '_wc_payment_method_id', true );
+							$is_online_row = ( 'stripe' === $p_method || 'stripe' === $p_meth_id || 'paypal' === $p_method || 'paypal' === $p_meth_id );
+							$row_fraud_data = $can_verify ? WC_Fraud_Protection::get_request_flags( $cur_id ) : array( 'flags' => array() );
+							?>
+							<tr>
+								<?php if ( $can_delete_requests ) : ?>
+									<th scope="row" class="check-column"><input type="checkbox" name="request_ids[]" value="<?php echo esc_attr( $cur_id ); ?>" aria-label="<?php echo esc_attr( sprintf( __( 'Select request %s', 'wellness-consult' ), $ref_id ) ); ?>"></th>
+								<?php endif; ?>
+								<td class="wc-request-col-request">
+									<code><strong><?php echo esc_html( $ref_id ? $ref_id : get_the_title() ); ?></strong></code>
+									<div class="wc-request-secondary"><?php echo esc_html( get_the_date( 'Y-m-d H:i' ) ); ?></div>
+								</td>
+								<td class="wc-request-col-patient">
+									<strong><?php echo esc_html( $name ? $name : '—' ); ?></strong>
+									<div class="wc-request-secondary"><?php echo esc_html( $all_countries[ $country ] ?? ( $country ? $country : '—' ) ); ?></div>
+								</td>
+								<td class="wc-request-col-consultation">
+									<strong><?php echo esc_html( $type_name ? $type_name : '—' ); ?></strong>
+									<div><?php echo esc_html( WC_Options::get_mode_icon( $cur_mode ) . ' ' . WC_Options::get_mode_label( $cur_mode ) ); ?></div>
+									<?php if ( $row_platform ) : ?><div class="wc-request-secondary"><?php echo esc_html( $row_platform ); ?></div><?php endif; ?>
+								</td>
+								<td class="wc-request-col-fee"><strong>$<?php echo esc_html( number_format( (float) $fee_usd, 2 ) ); ?></strong></td>
+								<td class="wc-request-col-appointment">
+									<?php if ( $row_time_labels['patient'] ) : ?>
+										<div><?php echo esc_html( $row_time_labels['patient'] ); ?></div>
+										<div class="wc-request-secondary"><?php echo esc_html( $row_time_labels['consultant'] ); ?></div>
+									<?php else : ?>
+										—
+									<?php endif; ?>
+								</td>
+								<td class="wc-request-col-consultant"><?php echo esc_html( $row_consultant ? $row_consultant->display_name : '—' ); ?></td>
+								<td class="wc-request-col-status">
+									<span class="wc-request-status-badge"><?php echo esc_html( WC_Status::get_label( $status ) ); ?></span>
+									<?php if ( $is_online_row ) : ?>
+										<div class="wc-request-secondary"><?php echo ( 'stripe' === $p_method || 'stripe' === $p_meth_id ) ? 'Stripe' : 'PayPal'; ?></div>
+									<?php endif; ?>
+									<?php if ( ! empty( $row_fraud_data['flags'] ) ) : ?>
+										<span class="wc-request-warning-badge" title="<?php echo esc_attr( implode( '; ', $row_fraud_data['flags'] ) ); ?>"><?php esc_html_e( 'Review flags', 'wellness-consult' ); ?></span>
+									<?php endif; ?>
+								</td>
+								<td class="wc-request-col-actions">
+									<a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-all-requests&action=view&id=' . $cur_id ) ); ?>" class="button button-small"><?php esc_html_e( 'View Details', 'wellness-consult' ); ?></a>
+									<?php if ( $can_delete_requests ) : ?>
+										<div class="row-actions">
+											<span class="delete">
+												<a class="submitdelete" href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'wc_delete_request', 'request_id' => $cur_id ), admin_url( 'admin-post.php' ) ), 'wc_delete_request_' . $cur_id ) ); ?>" onclick="return confirm('<?php echo esc_attr( __( 'Permanently delete this request and its proof files?', 'wellness-consult' ) ); ?>');"><?php esc_html_e( 'Delete permanently', 'wellness-consult' ); ?></a>
+											</span>
+										</div>
+									<?php endif; ?>
+								</td>
+							</tr>
+						<?php endwhile; ?>
+					</tbody>
+				</table>
+			</form>
+		</div>
+		<?php if ( $can_delete_requests ) : ?>
+			<script>
+			(function() {
+				var selectAll = document.querySelector('.wc-request-select-all');
+				if (!selectAll) {
+					return;
+				}
+				selectAll.addEventListener('change', function() {
+					document.querySelectorAll('.wc-requests-table input[name="request_ids[]"]').forEach(function(checkbox) {
+						checkbox.checked = selectAll.checked;
+					});
+				});
+			})();
+			</script>
+		<?php endif; ?>
 		<?php wp_reset_postdata(); ?>
 	<?php else : ?>
 		<div class="card" style="padding: 30px; text-align: center; max-width: 600px; margin: 30px auto;">

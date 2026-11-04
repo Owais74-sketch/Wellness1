@@ -49,6 +49,9 @@ if ( isset( $_POST['wc_payments_save_nonce'] ) && wp_verify_nonce( sanitize_key(
 		'paypal_client_id'      => $paypal_client_id,
 		'paypal_secret'         => $paypal_secret,
 		'paypal_webhook_id'     => $paypal_webhook,
+		'require_online_payment' => $current_settings['require_online_payment'] ?? '0',
+		'turnstile_site_key'    => $current_settings['turnstile_site_key'] ?? '',
+		'turnstile_secret_key'  => $current_settings['turnstile_secret_key'] ?? '',
 	);
 
 	update_option( 'wc_payment_settings', $new_settings );

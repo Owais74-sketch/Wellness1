@@ -50,6 +50,25 @@ class WC_Cron {
 				$created_ts      = $created_at_meta ? strtotime( $created_at_meta ) : get_post_time( 'U', true, $post_id );
 
 				if ( $created_ts && $created_ts <= $cutoff_ts ) {
+					if ( '1' === (string) get_post_meta( $post_id, '_wc_is_draft', true ) ) {
+						$idempotency_hash = get_post_meta( $post_id, '_wc_draft_idempotency_hash', true );
+						$proofs = get_post_meta( $post_id, '_wc_proof_history', true );
+						foreach ( (array) $proofs as $proof ) {
+							if ( ! empty( $proof['relative_path'] ) ) {
+								WC_Upload_Handler::delete_proof( $proof['relative_path'] );
+							}
+						}
+						$proof = get_post_meta( $post_id, '_wc_proof_file', true );
+						if ( $proof ) {
+							WC_Upload_Handler::delete_proof( $proof );
+						}
+						if ( $idempotency_hash ) {
+							delete_option( 'wc_draft_idem_' . sanitize_key( $idempotency_hash ) );
+							delete_transient( 'wc_draft_idem_' . sanitize_key( $idempotency_hash ) );
+						}
+						wp_delete_post( $post_id, true );
+						continue;
+					}
 					WC_Status::change_status(
 						$post_id,
 						WC_Status::STATUS_EXPIRED,

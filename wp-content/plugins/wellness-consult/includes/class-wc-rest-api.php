@@ -26,6 +26,12 @@ class WC_REST_API {
 			'permission_callback' => '__return_true',
 		) );
 
+		register_rest_route( self::NAMESPACE, '/stripe-return', array(
+			'methods'             => 'GET',
+			'callback'            => array( 'WC_Gateway_Stripe', 'handle_verified_return' ),
+			'permission_callback' => '__return_true',
+		) );
+
 		// PayPal Webhook Endpoint
 		register_rest_route( self::NAMESPACE, '/paypal-webhook', array(
 			'methods'             => 'POST',
@@ -67,12 +73,19 @@ class WC_REST_API {
 		if ( empty( $confirm_data ) || ! is_array( $confirm_data ) || (int) ( $confirm_data['request_id'] ?? 0 ) !== $post_id ) {
 			// If already captured previously (e.g. browser refresh), redirect safely without re-capturing
 			$already_captured = get_post_meta( $post_id, '_wc_paypal_captured', true );
-			if ( $already_captured ) {
-				$booking_url = home_url( '/book-consultation/' );
-				$redirect_to = add_query_arg( array(
-					'wc_confirmed' => 1,
-					'ref'          => get_post_meta( $post_id, '_wc_reference_id', true ),
-				), $booking_url );
+			if ( $already_captured && WC_Status::STATUS_PAID_AWAITING_SCHEDULING === get_post_meta( $post_id, '_wc_status', true ) ) {
+				$token = wp_generate_password( 32, false, false );
+				$confirm_data = array(
+					'request_id'   => $post_id,
+					'reference_id' => get_post_meta( $post_id, '_wc_reference_id', true ),
+					'status'       => get_post_meta( $post_id, '_wc_status', true ),
+					'fee_usd'      => get_post_meta( $post_id, '_wc_fee_usd', true ),
+					'name'         => get_post_meta( $post_id, '_wc_name', true ),
+					'consult_mode' => get_post_meta( $post_id, '_wc_consult_mode', true ),
+					'type_name'    => get_post_meta( $post_id, '_wc_type_name', true ),
+				);
+				set_transient( 'wc_confirm_' . $token, $confirm_data, 900 );
+				$redirect_to = add_query_arg( array( 'wc_confirmed' => 1, 'token' => $token ), home_url( '/book-consultation/' ) );
 				wp_safe_redirect( $redirect_to );
 				exit;
 			}
@@ -85,9 +98,20 @@ class WC_REST_API {
 
 		if ( ! empty( $order_id ) ) {
 			// Capture only once (Requirement 5)
-			WC_Gateway_PayPal::capture_order( $order_id, $post_id );
+			$capture = WC_Gateway_PayPal::capture_order( $order_id, $post_id );
+			if ( is_wp_error( $capture ) ) {
+				wp_die( esc_html( $capture->get_error_message() ), 'Payment verification failed', array( 'response' => 400 ) );
+			}
+		} else {
+			wp_die( esc_html__( 'The payment order could not be verified.', 'wellness-consult' ), 'Payment verification failed', array( 'response' => 400 ) );
 		}
 
+		$confirm_data['reference_id'] = get_post_meta( $post_id, '_wc_reference_id', true );
+		$confirm_data['status']       = get_post_meta( $post_id, '_wc_status', true );
+		if ( ! $confirm_data['reference_id'] || WC_Status::STATUS_PAID_AWAITING_SCHEDULING !== $confirm_data['status'] ) {
+			wp_die( esc_html__( 'Payment verification is still pending. Your booking is not confirmed yet.', 'wellness-consult' ), 'Payment pending', array( 'response' => 409 ) );
+		}
+		set_transient( 'wc_confirm_' . $token, $confirm_data, 900 );
 		$booking_url = home_url( '/book-consultation/' );
 		$redirect_to = add_query_arg( array(
 			'wc_confirmed' => 1,

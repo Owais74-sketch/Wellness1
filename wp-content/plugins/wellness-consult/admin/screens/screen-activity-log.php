@@ -16,20 +16,8 @@ if ( ! current_user_can( 'wc_view_activity_log' ) ) {
 
 $notice = '';
 $notice_type = 'success';
-
-// Clear Log action (admin only)
-if ( isset( $_GET['action'] ) && 'clear_logs' === $_GET['action'] && isset( $_GET['_wpnonce'] ) && current_user_can( 'manage_options' ) ) {
-	if ( wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'wc_clear_activity_logs' ) ) {
-		global $wpdb;
-		$table_name = $wpdb->prefix . 'wc_activity_log';
-		$wpdb->query( "TRUNCATE TABLE $table_name" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-		$notice = esc_html__( 'Activity log cleared successfully.', 'wellness-consult' );
-
-		WC_Database::log( array(
-			'action' => 'clear_log',
-			'note'   => 'Audit history truncated by administrator.',
-		) );
-	}
+if ( isset( $_GET['notice'] ) && 'logs_cleared' === sanitize_key( wp_unslash( $_GET['notice'] ) ) ) {
+	$notice = esc_html__( 'Activity log cleared successfully.', 'wellness-consult' );
 }
 
 // Filter and Pagination parameters
@@ -47,7 +35,7 @@ $total_pages = ceil( $total_logs / $per_page );
 	<h1 class="wp-heading-inline"><?php esc_html_e( 'System Activity & Audit Log', 'wellness-consult' ); ?></h1>
 
 	<?php if ( current_user_can( 'manage_options' ) && $total_logs > 0 ) : ?>
-		<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=wc-activity-log&action=clear_logs' ), 'wc_clear_activity_logs' ) ); ?>" class="button button-secondary" style="margin-left:10px;" onclick="return confirm('<?php esc_attr_e( 'Are you sure you want to permanently clear the entire activity log history?', 'wellness-consult' ); ?>');">
+		<a href="<?php echo esc_url( wp_nonce_url( add_query_arg( 'action', 'wc_clear_activity_logs', admin_url( 'admin-post.php' ) ), 'wc_clear_activity_logs' ) ); ?>" class="button button-secondary" style="margin-left:10px;" onclick="return confirm('<?php esc_attr_e( 'Are you sure you want to permanently clear the entire activity log history?', 'wellness-consult' ); ?>');">
 			<span class="dashicons dashicons-trash" style="vertical-align:text-top;font-size:16px;"></span> <?php esc_html_e( 'Clear Audit Log', 'wellness-consult' ); ?>
 		</a>
 	<?php endif; ?>

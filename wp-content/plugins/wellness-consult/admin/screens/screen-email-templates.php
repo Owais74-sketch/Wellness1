@@ -17,47 +17,29 @@ if ( ! current_user_can( 'wc_manage_email_templates' ) ) {
 $notice = '';
 $notice_type = 'success';
 
-$templates = get_option( 'wc_email_templates', WC_Options::get_default_email_templates() );
 $default_templates = WC_Options::get_default_email_templates();
-
-// Active tab selection
-$active_event = isset( $_GET['event'] ) && isset( $templates[ $_GET['event'] ] ) ? sanitize_key( $_GET['event'] ) : 'request_submitted';
-
-// Save Template Handler
-if ( isset( $_POST['wc_email_save_nonce'] ) && wp_verify_nonce( sanitize_key( $_POST['wc_email_save_nonce'] ), 'wc_save_email_action' ) ) {
-	$event_key = sanitize_key( $_POST['event_key'] ?? '' );
-	if ( isset( $templates[ $event_key ] ) ) {
-		$subject = sanitize_text_field( wp_unslash( $_POST['subject'] ?? '' ) );
-		$body    = sanitize_textarea_field( wp_unslash( $_POST['body'] ?? '' ) );
-
-		if ( empty( $subject ) || empty( $body ) ) {
-			$notice = esc_html__( 'Email subject and body cannot be empty.', 'wellness-consult' );
-			$notice_type = 'error';
-		} else {
-			$templates[ $event_key ]['subject'] = $subject;
-			$templates[ $event_key ]['body']    = $body;
-
-			update_option( 'wc_email_templates', $templates );
-			$notice = sprintf( esc_html__( 'Email template for "%s" saved successfully.', 'wellness-consult' ), esc_html( $templates[ $event_key ]['label'] ) );
-
-			WC_Database::log( array(
-				'action' => 'update_email_template',
-				'note'   => sprintf( 'Email template updated for event: %s.', $event_key ),
-			) );
-		}
-	}
+$saved_templates = get_option( 'wc_email_templates', array() );
+$templates = array_merge( $default_templates, is_array( $saved_templates ) ? $saved_templates : array() );
+foreach ( $default_templates as $template_key => $default_template ) {
+	$templates[ $template_key ]['label'] = $default_template['label'];
 }
 
-// Reset Template Handler
-if ( isset( $_GET['action'] ) && 'reset_template' === $_GET['action'] && ! empty( $_GET['event_key'] ) && isset( $_GET['_wpnonce'] ) ) {
-	if ( wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'wc_reset_email_' . $_GET['event_key'] ) ) {
-		$r_key = sanitize_key( $_GET['event_key'] );
-		if ( isset( $default_templates[ $r_key ] ) ) {
-			$templates[ $r_key ] = $default_templates[ $r_key ];
-			update_option( 'wc_email_templates', $templates );
-			$notice = sprintf( esc_html__( 'Email template for "%s" has been reset to system default.', 'wellness-consult' ), esc_html( $default_templates[ $r_key ]['label'] ) );
-		}
-	}
+// Active tab selection
+$requested_event = isset( $_GET['event'] ) && is_string( $_GET['event'] ) ? sanitize_key( wp_unslash( $_GET['event'] ) ) : '';
+$active_event = isset( $templates[ $requested_event ] ) ? $requested_event : 'request_submitted';
+$notice_code = isset( $_GET['notice'] ) && is_string( $_GET['notice'] ) ? sanitize_key( wp_unslash( $_GET['notice'] ) ) : '';
+$notice_messages = array(
+	'saved'          => array( 'success', __( 'Email template saved successfully.', 'wellness-consult' ) ),
+	'reset'          => array( 'success', __( 'Email template reset to its default.', 'wellness-consult' ) ),
+	'test_sent'      => array( 'success', __( 'Test email sent to your administrator address.', 'wellness-consult' ) ),
+	'test_failed'    => array( 'error', __( 'The test email could not be sent. Check the site email configuration and try again.', 'wellness-consult' ) ),
+	'rate_limited'   => array( 'error', __( 'Test email limit reached. You can send up to 5 test emails per hour.', 'wellness-consult' ) ),
+	'empty_template' => array( 'error', __( 'Email subject and body cannot be empty.', 'wellness-consult' ) ),
+	'invalid_event'  => array( 'error', __( 'The requested email template was not found.', 'wellness-consult' ) ),
+);
+if ( isset( $notice_messages[ $notice_code ] ) ) {
+	$notice_type = $notice_messages[ $notice_code ][0];
+	$notice = $notice_messages[ $notice_code ][1];
 }
 
 $current_template = $templates[ $active_event ] ?? $default_templates['request_submitted'];
@@ -96,7 +78,8 @@ $current_template = $templates[ $active_event ] ?? $default_templates['request_s
 					<?php esc_html_e( 'Dispatched automatically when this consultation milestone is reached.', 'wellness-consult' ); ?>
 				</p>
 
-				<form method="post" action="">
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="wc_save_email_template">
 					<?php wp_nonce_field( 'wc_save_email_action', 'wc_email_save_nonce' ); ?>
 					<input type="hidden" name="event_key" value="<?php echo esc_attr( $active_event ); ?>">
 
@@ -112,11 +95,20 @@ $current_template = $templates[ $active_event ] ?? $default_templates['request_s
 
 					<div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;">
 						<input type="submit" name="submit_email" class="button button-primary" value="<?php esc_attr_e( 'Save Template', 'wellness-consult' ); ?>">
-						<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=wc-email-templates&action=reset_template&event_key=' . $active_event ), 'wc_reset_email_' . $active_event ) ); ?>" class="button button-secondary" onclick="return confirm('<?php esc_attr_e( 'Reset this template to the default text?', 'wellness-consult' ); ?>');">
+						<a href="<?php echo esc_url( wp_nonce_url( add_query_arg( array( 'action' => 'wc_reset_email_template', 'event_key' => $active_event ), admin_url( 'admin-post.php' ) ), 'wc_reset_email_' . $active_event ) ); ?>" class="button button-secondary" onclick="return confirm('<?php esc_attr_e( 'Reset this template to the default text?', 'wellness-consult' ); ?>');">
 							<?php esc_html_e( 'Reset to Default', 'wellness-consult' ); ?>
 						</a>
 					</div>
 				</form>
+				<?php if ( current_user_can( 'manage_options' ) ) : ?>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:12px;">
+						<input type="hidden" name="action" value="wc_test_email_template">
+						<input type="hidden" name="event_key" value="<?php echo esc_attr( $active_event ); ?>">
+						<?php wp_nonce_field( 'wc_test_email_' . $active_event, 'wc_test_email_nonce' ); ?>
+						<button type="submit" class="button button-secondary"><?php esc_html_e( 'Send test email to my admin address', 'wellness-consult' ); ?></button>
+						<p class="description"><?php esc_html_e( 'Sends the currently saved template to your own administrator email. Unsaved edits are not included.', 'wellness-consult' ); ?></p>
+					</form>
+				<?php endif; ?>
 			</div>
 
 			<!-- Dynamic Placeholders Column -->
@@ -132,6 +124,9 @@ $current_template = $templates[ $active_event ] ?? $default_templates['request_s
 				<dl style="font-size:12px;margin:0;line-height:1.5;">
 					<dt style="font-family:monospace;font-weight:700;color:#0f3b4c;">{name}</dt>
 					<dd style="margin:0 0 8px 0;color:#475569;"><?php esc_html_e( 'Patient alias or given name', 'wellness-consult' ); ?></dd>
+
+					<dt style="font-family:monospace;font-weight:700;color:#0f3b4c;">{site_name}</dt>
+					<dd style="margin:0 0 8px 0;color:#475569;"><?php esc_html_e( 'Site name used in the email sign-off', 'wellness-consult' ); ?></dd>
 
 					<dt style="font-family:monospace;font-weight:700;color:#0f3b4c;">{reference_id}</dt>
 					<dd style="margin:0 0 8px 0;color:#475569;"><?php esc_html_e( 'Tracking ID (e.g. WC-2026-00123)', 'wellness-consult' ); ?></dd>
@@ -154,11 +149,23 @@ $current_template = $templates[ $active_event ] ?? $default_templates['request_s
 					<dt style="font-family:monospace;font-weight:700;color:#0f3b4c;">{date_time_consultant}</dt>
 					<dd style="margin:0 0 8px 0;color:#475569;"><?php esc_html_e( 'Appointment in consultant time zone', 'wellness-consult' ); ?></dd>
 
-					<dt style="font-family:monospace;font-weight:700;color:#0f3b4c;">{mode}</dt>
-					<dd style="margin:0 0 8px 0;color:#475569;"><?php esc_html_e( 'Google Meet, Zoom, WhatsApp, etc.', 'wellness-consult' ); ?></dd>
+					<dt style="font-family:monospace;font-weight:700;color:#0f3b4c;">{consult_mode}</dt>
+					<dd style="margin:0 0 8px 0;color:#475569;"><?php esc_html_e( 'Chat, voice, or video consultation mode', 'wellness-consult' ); ?></dd>
+
+					<dt style="font-family:monospace;font-weight:700;color:#0f3b4c;">{platform}</dt>
+					<dd style="margin:0 0 8px 0;color:#475569;"><?php esc_html_e( 'Selected consultation platform', 'wellness-consult' ); ?></dd>
+
+					<dt style="font-family:monospace;font-weight:700;color:#0f3b4c;">{appointment_local}</dt>
+					<dd style="margin:0 0 8px 0;color:#475569;"><?php esc_html_e( 'Appointment in the patient time zone, including its zone name', 'wellness-consult' ); ?></dd>
+
+					<dt style="font-family:monospace;font-weight:700;color:#0f3b4c;">{appointment_consultant}</dt>
+					<dd style="margin:0 0 8px 0;color:#475569;"><?php esc_html_e( 'Appointment in the consultant time zone, including its zone name', 'wellness-consult' ); ?></dd>
 
 					<dt style="font-family:monospace;font-weight:700;color:#0f3b4c;">{meeting_link}</dt>
-					<dd style="margin:0 0 8px 0;color:#475569;"><?php esc_html_e( 'Secure meeting invitation link', 'wellness-consult' ); ?></dd>
+					<dd style="margin:0 0 8px 0;color:#475569;"><?php esc_html_e( 'Meeting URL or contact detail; included only in scheduled and rescheduled emails', 'wellness-consult' ); ?></dd>
+
+					<dt style="font-family:monospace;font-weight:700;color:#0f3b4c;">{reason}</dt>
+					<dd style="margin:0 0 8px 0;color:#475569;"><?php esc_html_e( 'Cancellation or action reason when included by the notification', 'wellness-consult' ); ?></dd>
 				</dl>
 			</div>
 		</div>

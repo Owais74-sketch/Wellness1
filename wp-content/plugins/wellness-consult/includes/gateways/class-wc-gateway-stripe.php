@@ -148,7 +148,7 @@ class WC_Gateway_Stripe implements WC_Gateway_Interface {
 			);
 		}
 
-		$reference_id = get_post_meta( $post_id, '_wc_reference_id', true );
+		$reference_id = get_post_meta( $post_id, '_wc_gateway_reference', true );
 		$fee_usd      = (float) get_post_meta( $post_id, '_wc_fee_usd', true );
 		$type_name    = get_post_meta( $post_id, '_wc_type_name', true );
 		$consult_mode = get_post_meta( $post_id, '_wc_consult_mode', true );
@@ -159,29 +159,10 @@ class WC_Gateway_Stripe implements WC_Gateway_Interface {
 			return new WP_Error( 'wc_stripe_invalid_fee', esc_html__( 'Invalid consultation fee amount.', 'wellness-consult' ) );
 		}
 
-		// Single-use confirmation token for redirect return (Requirement 5)
-		$confirm_token = wp_generate_password( 32, false );
-		set_transient( 'wc_confirm_' . $confirm_token, array(
-			'reference_id' => $reference_id,
-			'status'       => WC_Status::STATUS_AWAITING_PAYMENT,
-			'fee_usd'      => $fee_usd,
-			'name'         => $args['name'] ?? '',
-			'consult_mode' => $consult_mode,
-			'type_name'    => $type_name,
-			'request_id'   => $post_id,
-		), 1800 );
-
 		$booking_page_url = home_url( '/book-consultation/' );
-		$success_url      = add_query_arg( array(
-			'wc_confirmed' => 1,
-			'token'        => $confirm_token,
-			'session_id'   => '{CHECKOUT_SESSION_ID}',
-		), $booking_page_url );
+		$success_url      = add_query_arg( 'request_id', absint( $post_id ), rest_url( 'wc-consult/v1/stripe-return' ) ) . '&session_id={CHECKOUT_SESSION_ID}';
 
-		$cancel_url = add_query_arg( array(
-			'wc_cancelled' => 1,
-			'ref'          => $reference_id,
-		), $booking_page_url );
+		$cancel_url = add_query_arg( 'wc_payment_cancelled', 1, $booking_page_url );
 
 		$session_params = array(
 			'payment_method_types'                                 => array( 'card' ),
@@ -190,7 +171,7 @@ class WC_Gateway_Stripe implements WC_Gateway_Interface {
 			'line_items[0][price_data][currency]'                  => 'usd',
 			'line_items[0][price_data][unit_amount]'               => $unit_amount,
 			'line_items[0][price_data][product_data][name]'        => sprintf( '%s (%s)', $type_name, $mode_label ),
-			'line_items[0][price_data][product_data][description]' => sprintf( 'Private consultation session (%s). Ref: %s', $mode_label, $reference_id ),
+			'line_items[0][price_data][product_data][description]' => sprintf( 'Private consultation session (%s)', $mode_label ),
 			'line_items[0][quantity]'                              => 1,
 			'metadata[request_id]'                                 => (string) $post_id,
 			'metadata[reference_id]'                               => (string) $reference_id,
@@ -381,6 +362,10 @@ class WC_Gateway_Stripe implements WC_Gateway_Interface {
 		$session_id  = sanitize_text_field( $session['id'] ?? '' );
 		$client_ref  = sanitize_text_field( $session['client_reference_id'] ?? '' );
 		$meta_req_id = absint( $session['metadata']['request_id'] ?? 0 );
+		$metadata_ref = sanitize_text_field( $session['metadata']['reference_id'] ?? '' );
+		if ( empty( $session_id ) || empty( $client_ref ) || ! hash_equals( $client_ref, $metadata_ref ) || 'paid' !== ( $session['payment_status'] ?? '' ) ) {
+			return new WP_Error( 'wc_stripe_payment_unverified', 'Stripe session is not paid or its request reference does not match.' );
+		}
 
 		// Requirement 4: Request Binding Verification
 		$req_id = 0;
@@ -388,10 +373,13 @@ class WC_Gateway_Stripe implements WC_Gateway_Interface {
 			$post = get_post( $meta_req_id );
 			if ( $post && 'wc_request' === $post->post_type ) {
 				$stored_session = get_post_meta( $meta_req_id, '_wc_stripe_session_id', true );
-				$stored_ref     = get_post_meta( $meta_req_id, '_wc_reference_id', true );
+				$stored_ref     = get_post_meta( $meta_req_id, '_wc_gateway_reference', true );
+				if ( empty( $stored_ref ) ) {
+					$stored_ref = get_post_meta( $meta_req_id, '_wc_reference_id', true );
+				}
 
 				// Validate session ID or client reference binds to this post
-				if ( ( ! empty( $stored_session ) && $stored_session === $session_id ) || ( ! empty( $stored_ref ) && $stored_ref === $client_ref ) ) {
+				if ( ! empty( $stored_ref ) && $stored_ref === $client_ref && ( empty( $stored_session ) || $stored_session === $session_id ) ) {
 					$req_id = $meta_req_id;
 				}
 			}
@@ -400,14 +388,26 @@ class WC_Gateway_Stripe implements WC_Gateway_Interface {
 		if ( ! $req_id && ! empty( $client_ref ) ) {
 			$posts = get_posts( array(
 				'post_type'   => 'wc_request',
-				'meta_key'    => '_wc_reference_id',
+				'meta_key'    => '_wc_gateway_reference',
 				'meta_value'  => $client_ref,
 				'numberposts' => 1,
 			) );
+			if ( empty( $posts ) ) {
+				$posts = get_posts( array(
+					'post_type'   => 'wc_request',
+					'meta_key'    => '_wc_reference_id',
+					'meta_value'  => $client_ref,
+					'numberposts' => 1,
+				) );
+			}
 			if ( ! empty( $posts ) ) {
 				$candidate_id   = $posts[0]->ID;
 				$stored_session = get_post_meta( $candidate_id, '_wc_stripe_session_id', true );
-				if ( empty( $stored_session ) || $stored_session === $session_id ) {
+				$candidate_ref = get_post_meta( $candidate_id, '_wc_gateway_reference', true );
+				if ( empty( $candidate_ref ) ) {
+					$candidate_ref = get_post_meta( $candidate_id, '_wc_reference_id', true );
+				}
+				if ( $candidate_ref === $client_ref && ( empty( $stored_session ) || $stored_session === $session_id ) ) {
 					$req_id = $candidate_id;
 				}
 			}
@@ -462,20 +462,66 @@ class WC_Gateway_Stripe implements WC_Gateway_Interface {
 
 		// Save verified payment metadata
 		$payment_intent = sanitize_text_field( $session['payment_intent'] ?? ( $session['id'] ?? '' ) );
-		update_post_meta( $req_id, '_wc_payment_provider_id', $payment_intent );
-		update_post_meta( $req_id, '_wc_amount_received', $paid_amount );
-		update_post_meta( $req_id, '_wc_paid_at', current_time( 'mysql', 1 ) );
 		delete_post_meta( $req_id, '_wc_admin_alert_mismatch' );
+		return WC_Booking_Handler::confirm_online_payment( $req_id, $payment_intent, $paid_amount, $paid_currency );
+	}
 
-		$log_note = sprintf(
-			'Online payment confirmed via Stripe Checkout. Payment Intent: %s. Amount: $%0.2f USD.',
-			$payment_intent,
-			$paid_amount
-		);
+	/**
+	 * Verify a browser return directly against Stripe before showing confirmation.
+	 *
+	 * @param WP_REST_Request $request Return request.
+	 */
+	public static function handle_verified_return( $request ) {
+		$request_id = absint( $request->get_param( 'request_id' ) );
+		$session_id = sanitize_text_field( $request->get_param( 'session_id' ) );
+		$secret_key = self::get_secret_key();
+		if ( ! $request_id || empty( $session_id ) || empty( $secret_key ) ) {
+			wp_die( esc_html__( 'The payment return could not be verified.', 'wellness-consult' ), 'Payment verification failed', array( 'response' => 400 ) );
+		}
 
-		WC_Status::change_status( $req_id, WC_Status::STATUS_PAID_AWAITING_SCHEDULING, $log_note );
+		$response = wp_remote_get( self::STRIPE_API_BASE . '/checkout/sessions/' . rawurlencode( $session_id ), array(
+			'headers' => array(
+				'Authorization'  => 'Bearer ' . $secret_key,
+				'Stripe-Version' => '2023-10-16',
+			),
+			'timeout' => 20,
+		) );
+		if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+			wp_die( esc_html__( 'The payment provider could not verify your payment. Please try again shortly.', 'wellness-consult' ), 'Payment verification pending', array( 'response' => 502 ) );
+		}
 
-		return true;
+		$session = json_decode( wp_remote_retrieve_body( $response ), true );
+		$reference = get_post_meta( $request_id, '_wc_gateway_reference', true );
+		if ( empty( $reference ) ) {
+			$reference = get_post_meta( $request_id, '_wc_reference_id', true );
+		}
+		$expected = (float) get_post_meta( $request_id, '_wc_fee_usd', true );
+		$amount   = isset( $session['amount_total'] ) ? (float) $session['amount_total'] / 100 : 0.0;
+		$metadata = $session['metadata'] ?? array();
+		if ( empty( $session['id'] ) || $session['id'] !== $session_id
+			|| (int) ( $metadata['request_id'] ?? 0 ) !== $request_id
+			|| empty( $reference )
+			|| ! hash_equals( (string) $reference, (string) ( $session['client_reference_id'] ?? '' ) )
+			|| ! hash_equals( (string) $reference, (string) ( $metadata['reference_id'] ?? '' ) )
+			|| (string) get_post_meta( $request_id, '_wc_stripe_session_id', true ) !== $session_id
+			|| 'paid' !== ( $session['payment_status'] ?? '' )
+			|| 'usd' !== strtolower( $session['currency'] ?? '' )
+			|| abs( $amount - $expected ) > 0.01
+		) {
+			wp_die( esc_html__( 'Payment verification is still pending. Your booking is not confirmed yet.', 'wellness-consult' ), 'Payment pending', array( 'response' => 409 ) );
+		}
+
+		$payment_intent = sanitize_text_field( $session['payment_intent'] ?? $session_id );
+		$result = WC_Booking_Handler::confirm_online_payment( $request_id, $payment_intent, $amount, 'USD' );
+		if ( is_wp_error( $result ) ) {
+			wp_die( esc_html( $result->get_error_message() ), 'Payment verification failed', array( 'response' => 409 ) );
+		}
+		$token = WC_Booking_Handler::create_confirmation_view_token( $request_id );
+		wp_safe_redirect( add_query_arg(
+			array( 'wc_confirmed' => 1, 'token' => $token ),
+			home_url( '/book-consultation/' )
+		) );
+		exit;
 	}
 
 	/**

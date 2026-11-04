@@ -77,6 +77,7 @@ $general_settings = get_option( 'wc_general_settings', array(
 	'track_fail_limit'     => 5,
 	'delete_on_uninstall'  => '0',
 ) );
+$payment_settings = get_option( 'wc_payment_settings', array() );
 
 // Handle Settings Form Save
 if ( isset( $_POST['wc_settings_nonce'] ) && wp_verify_nonce( sanitize_key( $_POST['wc_settings_nonce'] ), 'wc_save_general_settings' ) ) {
@@ -88,6 +89,7 @@ if ( isset( $_POST['wc_settings_nonce'] ) && wp_verify_nonce( sanitize_key( $_PO
 	$rate_limit_per_hour  = max( 1, absint( $_POST['rate_limit_per_hour'] ?? 3 ) );
 	$track_fail_limit     = max( 3, absint( $_POST['track_fail_limit'] ?? 5 ) );
 	$delete_on_uninstall  = isset( $_POST['delete_on_uninstall'] ) ? '1' : '0';
+	$require_online_payment = isset( $_POST['require_online_payment'] ) ? '1' : '0';
 
 	$general_settings = array(
 		'min_reschedule_hours' => $min_reschedule_hours,
@@ -101,6 +103,8 @@ if ( isset( $_POST['wc_settings_nonce'] ) && wp_verify_nonce( sanitize_key( $_PO
 	);
 
 	update_option( 'wc_general_settings', $general_settings );
+	$payment_settings['require_online_payment'] = $require_online_payment;
+	update_option( 'wc_payment_settings', $payment_settings );
 	$notice = esc_html__( 'Consultation settings updated successfully.', 'wellness-consult' );
 
 	WC_Database::log( array(
@@ -195,28 +199,6 @@ if ( isset( $_POST['wc_import_nonce'] ) && wp_verify_nonce( sanitize_key( $_POST
 	}
 }
 
-// Handle JSON Export Request
-if ( isset( $_GET['action'] ) && 'export_settings' === $_GET['action'] && isset( $_GET['_wpnonce'] ) ) {
-	if ( wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'wc_export_settings_nonce' ) ) {
-		// NEVER export secrets (Stripe / PayPal keys)
-		$export_data = array(
-			'site_url'           => home_url(),
-			'export_timestamp'   => current_time( 'mysql' ),
-			'schema_version'     => '1.1.0',
-			'general_settings'   => $general_settings,
-			'consultation_types' => get_option( 'wc_consultation_types', array() ),
-			'platforms'          => get_option( 'wc_platforms', WC_Options::get_default_platforms() ),
-			'countries_settings' => get_option( 'wc_countries_settings', array() ),
-			'email_templates'    => get_option( 'wc_email_templates', array() ),
-		);
-
-		$filename = 'wellness-consult-settings-' . gmdate( 'Y-m-d' ) . '.json';
-		header( 'Content-Type: application/json; charset=utf-8' );
-		header( 'Content-Disposition: attachment; filename=' . $filename );
-		echo wp_json_encode( $export_data, JSON_PRETTY_PRINT );
-		exit;
-	}
-}
 ?>
 
 <div class="wrap wc-admin-wrap">
@@ -282,6 +264,16 @@ if ( isset( $_GET['action'] ) && 'export_settings' === $_GET['action'] && isset(
 
 			<table class="form-table" role="presentation">
 				<tbody>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Booking Payment Rule', 'wellness-consult' ); ?></th>
+						<td>
+							<label for="require_online_payment">
+								<input type="checkbox" id="require_online_payment" name="require_online_payment" value="1" <?php checked( ! empty( $payment_settings['require_online_payment'] ) ); ?>>
+								<?php esc_html_e( 'Require online payment before a booking is confirmed', 'wellness-consult' ); ?>
+							</label>
+							<p class="description"><?php esc_html_e( 'When enabled, manual payment methods are hidden and booking is unavailable if no online gateway is enabled.', 'wellness-consult' ); ?></p>
+						</td>
+					</tr>
 					<tr>
 						<th scope="row"><label for="proof_retention_days"><?php esc_html_e( 'Payment Proof Retention (FR-21)', 'wellness-consult' ); ?></label></th>
 						<td>
@@ -504,7 +496,7 @@ if ( isset( $_GET['action'] ) && 'export_settings' === $_GET['action'] && isset(
 			<div style="background:#f8fafc;padding:16px;border:1px solid #e2e8f0;border-radius:4px;">
 				<h4 style="margin-top:0;"><?php esc_html_e( 'Export Settings', 'wellness-consult' ); ?></h4>
 				<p style="font-size:13px;color:#555;"><?php esc_html_e( 'Download a JSON archive of consultation types, country restrictions, email templates, and general rules.', 'wellness-consult' ); ?></p>
-				<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin.php?page=wc-settings&action=export_settings' ), 'wc_export_settings_nonce' ) ); ?>" class="button button-secondary">
+				<a href="<?php echo esc_url( wp_nonce_url( add_query_arg( 'action', 'wc_export_settings', admin_url( 'admin-post.php' ) ), 'wc_export_settings_nonce' ) ); ?>" class="button button-secondary">
 					<span class="dashicons dashicons-download" style="vertical-align:text-top;font-size:16px;"></span> <?php esc_html_e( 'Export Configuration JSON', 'wellness-consult' ); ?>
 				</a>
 			</div>

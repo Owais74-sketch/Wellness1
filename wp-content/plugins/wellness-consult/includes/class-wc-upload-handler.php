@@ -197,4 +197,27 @@ class WC_Upload_Handler {
 			'uploaded_at'   => current_time( 'mysql', 1 ),
 		);
 	}
+
+	/**
+	 * Delete a stored proof only when its relative path resolves inside wc-proofs.
+	 *
+	 * @param string $relative_path Stored proof path.
+	 * @return bool
+	 */
+	public static function delete_proof( $relative_path ) {
+		if ( ! is_string( $relative_path ) || '' === $relative_path || false !== strpos( $relative_path, '..' ) || path_is_absolute( $relative_path ) ) {
+			return false;
+		}
+		$base = realpath( WC_PROOFS_DIR );
+		$file = realpath( rtrim( WC_PROOFS_DIR, '/\\' ) . DIRECTORY_SEPARATOR . ltrim( $relative_path, '/\\' ) );
+		if ( false === $base || false === $file || ! is_file( $file ) ) {
+			return false;
+		}
+		$base = trailingslashit( wp_normalize_path( $base ) );
+		$file = wp_normalize_path( $file );
+		if ( 0 !== strpos( $file, $base ) ) {
+			return false;
+		}
+		return @unlink( $file );
+	}
 }

@@ -180,7 +180,7 @@ class WC_Gateway_PayPal implements WC_Gateway_Interface {
 			return $token;
 		}
 
-		$reference_id = get_post_meta( $post_id, '_wc_reference_id', true );
+		$reference_id = get_post_meta( $post_id, '_wc_gateway_reference', true );
 		$fee_usd      = (float) get_post_meta( $post_id, '_wc_fee_usd', true );
 		$type_name    = get_post_meta( $post_id, '_wc_type_name', true );
 		$consult_mode = get_post_meta( $post_id, '_wc_consult_mode', true );
@@ -211,12 +211,9 @@ class WC_Gateway_PayPal implements WC_Gateway_Interface {
 		$return_url = add_query_arg( array(
 			'request_id' => $post_id,
 			'token'      => $confirm_token,
-		), home_url( '/wp-json/wc-consult/v1/paypal-return' ) );
+		), rest_url( 'wc-consult/v1/paypal-return' ) );
 
-		$cancel_url = add_query_arg( array(
-			'wc_cancelled' => 1,
-			'ref'          => $reference_id,
-		), home_url( '/book-consultation/' ) );
+		$cancel_url = add_query_arg( 'wc_payment_cancelled', 1, home_url( '/book-consultation/' ) );
 
 		$order_payload = array(
 			'intent'         => 'CAPTURE',
@@ -224,7 +221,7 @@ class WC_Gateway_PayPal implements WC_Gateway_Interface {
 				array(
 					'reference_id' => $reference_id,
 					'custom_id'    => (string) $post_id,
-					'description'  => sprintf( '%s (%s) - Ref: %s', $type_name, $mode_label, $reference_id ),
+					'description'  => sprintf( '%s (%s)', $type_name, $mode_label ),
 					'amount'       => array(
 						'currency_code' => 'USD',
 						'value'         => number_format( $fee_usd, 2, '.', '' ),
@@ -300,6 +297,10 @@ class WC_Gateway_PayPal implements WC_Gateway_Interface {
 		if ( $already_captured || WC_Status::STATUS_PAID_AWAITING_SCHEDULING === $current_status ) {
 			return array( 'already_captured' => true );
 		}
+		$stored_order_id = get_post_meta( $post_id, '_wc_paypal_order_id', true );
+		if ( empty( $stored_order_id ) || ! hash_equals( (string) $stored_order_id, (string) $order_id ) ) {
+			return new WP_Error( 'wc_paypal_order_binding_failed', 'PayPal order does not match this booking draft.' );
+		}
 
 		$token = self::get_access_token();
 		if ( is_wp_error( $token ) ) {
@@ -310,11 +311,11 @@ class WC_Gateway_PayPal implements WC_Gateway_Interface {
 		if ( defined( 'WC_ALLOW_MOCK_GATEWAYS' ) && true === WC_ALLOW_MOCK_GATEWAYS && strpos( $token, 'mock' ) !== false ) {
 			$mock_capture_id = 'cap_mock_paypal_capture_888';
 			$amount_expected = (float) get_post_meta( $post_id, '_wc_fee_usd', true );
-			update_post_meta( $post_id, '_wc_payment_provider_id', $mock_capture_id );
-			update_post_meta( $post_id, '_wc_amount_received', $amount_expected );
-			update_post_meta( $post_id, '_wc_paid_at', current_time( 'mysql', 1 ) );
+			$confirmed = WC_Booking_Handler::confirm_online_payment( $post_id, $mock_capture_id, $amount_expected, 'USD' );
+			if ( is_wp_error( $confirmed ) ) {
+				return $confirmed;
+			}
 			update_post_meta( $post_id, '_wc_paypal_captured', 1 );
-			WC_Status::change_status( $post_id, WC_Status::STATUS_PAID_AWAITING_SCHEDULING, 'Online payment confirmed via PayPal return' );
 			return array( 'status' => 'COMPLETED', 'capture_id' => $mock_capture_id );
 		}
 
@@ -336,6 +337,14 @@ class WC_Gateway_PayPal implements WC_Gateway_Interface {
 		if ( ! in_array( $status, array( 200, 201 ), true ) || empty( $body['status'] ) || 'COMPLETED' !== $body['status'] ) {
 			$err = $body['message'] ?? esc_html__( 'PayPal capture failed.', 'wellness-consult' );
 			return new WP_Error( 'wc_paypal_capture_failed', $err );
+		}
+		$purchase_unit = $body['purchase_units'][0] ?? array();
+		$expected_reference = get_post_meta( $post_id, '_wc_gateway_reference', true );
+		if ( empty( $expected_reference ) ) {
+			$expected_reference = get_post_meta( $post_id, '_wc_reference_id', true );
+		}
+		if ( (string) ( $purchase_unit['custom_id'] ?? '' ) !== (string) $post_id || empty( $expected_reference ) || ! hash_equals( (string) $expected_reference, (string) ( $purchase_unit['reference_id'] ?? '' ) ) ) {
+			return new WP_Error( 'wc_paypal_reference_mismatch', 'PayPal payment reference does not match this booking.' );
 		}
 
 		// Extract capture ID and amount
@@ -369,16 +378,11 @@ class WC_Gateway_PayPal implements WC_Gateway_Interface {
 			return new WP_Error( 'wc_payment_mismatch', 'Payment mismatch. Status left unchanged.' );
 		}
 
-		update_post_meta( $post_id, '_wc_payment_provider_id', $capture_id );
-		update_post_meta( $post_id, '_wc_amount_received', $paid_amount );
-		update_post_meta( $post_id, '_wc_paid_at', current_time( 'mysql', 1 ) );
+		$confirmed = WC_Booking_Handler::confirm_online_payment( $post_id, $capture_id, $paid_amount, $currency );
+		if ( is_wp_error( $confirmed ) ) {
+			return $confirmed;
+		}
 		update_post_meta( $post_id, '_wc_paypal_captured', 1 );
-
-		WC_Status::change_status(
-			$post_id,
-			WC_Status::STATUS_PAID_AWAITING_SCHEDULING,
-			sprintf( 'Online payment captured via PayPal (%s). Amount: $%0.2f USD.', $capture_id, $paid_amount )
-		);
 
 		return $body;
 	}
@@ -469,11 +473,12 @@ class WC_Gateway_PayPal implements WC_Gateway_Interface {
 		$event_id = sanitize_text_field( $event['id'] );
 
 		// Requirement 1: Cryptographic signature verification
-		if ( ! empty( $webhook_id ) ) {
-			$verified = self::verify_webhook_signature( $request, $webhook_id );
-			if ( is_wp_error( $verified ) ) {
-				return new WP_REST_Response( array( 'error' => $verified->get_error_message() ), 401 );
-			}
+		if ( empty( $webhook_id ) ) {
+			return new WP_REST_Response( array( 'error' => 'PayPal webhook ID is not configured' ), 401 );
+		}
+		$verified = self::verify_webhook_signature( $request, $webhook_id );
+		if ( is_wp_error( $verified ) ) {
+			return new WP_REST_Response( array( 'error' => $verified->get_error_message() ), 401 );
 		}
 
 		// Requirement 2: Idempotency deduplication
@@ -516,7 +521,22 @@ class WC_Gateway_PayPal implements WC_Gateway_Interface {
 			}
 
 			if ( $req_id > 0 ) {
+				$provider_order_id = sanitize_text_field( $resource['supplementary_data']['related_ids']['order_id'] ?? '' );
+				$stored_order_id   = get_post_meta( $req_id, '_wc_paypal_order_id', true );
+				if ( empty( $provider_order_id ) || empty( $stored_order_id ) || ! hash_equals( (string) $stored_order_id, $provider_order_id ) ) {
+					return new WP_REST_Response( array( 'error' => 'PayPal webhook is not bound to an unpaid booking draft' ), 400 );
+				}
 				$current_status = get_post_meta( $req_id, '_wc_status', true );
+				if ( in_array( $current_status, array( WC_Status::STATUS_PAID_AWAITING_SCHEDULING, WC_Status::STATUS_SCHEDULED, WC_Status::STATUS_COMPLETED ), true ) ) {
+					if ( class_exists( 'WC_Gateway_Stripe' ) ) {
+						WC_Gateway_Stripe::mark_event_processed( $event_id );
+					}
+					return new WP_REST_Response( array( 'received' => true, 'idempotent' => true ), 200 );
+				}
+				$has_reference = ! empty( get_post_meta( $req_id, '_wc_reference_id', true ) );
+				if ( ( '1' !== (string) get_post_meta( $req_id, '_wc_is_draft', true ) && ! $has_reference ) || WC_Status::STATUS_AWAITING_PAYMENT !== $current_status ) {
+					return new WP_REST_Response( array( 'error' => 'PayPal booking is not awaiting payment' ), 400 );
+				}
 				if ( ! in_array( $current_status, array( WC_Status::STATUS_PAID_AWAITING_SCHEDULING, WC_Status::STATUS_SCHEDULED, WC_Status::STATUS_COMPLETED ), true ) ) {
 
 					// Requirement 3: Amount and currency check
@@ -540,15 +560,11 @@ class WC_Gateway_PayPal implements WC_Gateway_Interface {
 						return new WP_REST_Response( array( 'error' => 'Payment amount or currency mismatch' ), 400 );
 					}
 
-					update_post_meta( $req_id, '_wc_payment_provider_id', $capture_id );
-					update_post_meta( $req_id, '_wc_amount_received', $amount_paid );
-					update_post_meta( $req_id, '_wc_paid_at', current_time( 'mysql', 1 ) );
-
-					WC_Status::change_status(
-						$req_id,
-						WC_Status::STATUS_PAID_AWAITING_SCHEDULING,
-						sprintf( 'Online payment verified via PayPal Webhook (%s). Amount: $%0.2f USD.', $capture_id, $amount_paid )
-					);
+					$confirmed = WC_Booking_Handler::confirm_online_payment( $req_id, $capture_id, $amount_paid, $currency_paid );
+					if ( is_wp_error( $confirmed ) ) {
+						return new WP_REST_Response( array( 'error' => $confirmed->get_error_message() ), 400 );
+					}
+					update_post_meta( $req_id, '_wc_paypal_captured', 1 );
 				}
 			}
 		}

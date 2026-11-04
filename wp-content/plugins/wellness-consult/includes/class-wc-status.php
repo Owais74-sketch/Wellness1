@@ -70,6 +70,7 @@ class WC_Status {
 	public static function get_allowed_transitions_map() {
 		return array(
 			self::STATUS_AWAITING_PAYMENT => array(
+				self::STATUS_PENDING_VERIFICATION,
 				self::STATUS_PAID_AWAITING_SCHEDULING,
 				self::STATUS_EXPIRED,
 				self::STATUS_CANCELLED,

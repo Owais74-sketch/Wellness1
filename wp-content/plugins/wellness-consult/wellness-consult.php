@@ -33,6 +33,7 @@ require_once WC_PLUGIN_DIR . 'includes/class-wc-fraud-protection.php';
 require_once WC_PLUGIN_DIR . 'includes/class-wc-roles.php';
 require_once WC_PLUGIN_DIR . 'includes/class-wc-post-types.php';
 require_once WC_PLUGIN_DIR . 'includes/class-wc-status.php';
+require_once WC_PLUGIN_DIR . 'includes/class-wc-scheduling.php';
 require_once WC_PLUGIN_DIR . 'includes/class-wc-options.php';
 require_once WC_PLUGIN_DIR . 'includes/class-wc-activator.php';
 require_once WC_PLUGIN_DIR . 'includes/class-wc-deactivator.php';
@@ -54,6 +55,7 @@ WC_Gateway_Registry::register( 'WC_Gateway_Stripe' );
 WC_Gateway_Registry::register( 'WC_Gateway_PayPal' );
 
 if ( is_admin() ) {
+	require_once WC_PLUGIN_DIR . 'admin/class-wc-admin-actions.php';
 	require_once WC_PLUGIN_DIR . 'admin/class-wc-admin-menu.php';
 }
 

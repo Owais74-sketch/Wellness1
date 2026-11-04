@@ -243,38 +243,58 @@ class WC_Options {
 		return array(
 			'request_submitted' => array(
 				'label'   => esc_html__( 'Request Submitted (Awaiting Payment / Verification)', 'wellness-consult' ),
-				'subject' => 'Consultation Request Received - Ref: {reference_id}',
-				'body'    => "Hello {name},\n\nWe have received your private consultation request (Reference ID: {reference_id}).\n\nYour selected consultation type: {consultation_type}\nMode: {consult_mode}\nFee: {fee_usd}\n\nYou can track the current status of your request at any time here:\n{track_url}\n\nWarm regards,\nConsultation Team",
+				'subject' => 'Request Received - Ref: {reference_id}',
+				'body'    => "Hello {name},\n\nWe have received your private consultation request (Reference ID: {reference_id}).\n\nFee: {fee_usd}\n\nYou can track the current status of your request at any time here:\n{track_url}\n\nWarm regards,\n{site_name}",
 			),
 			'payment_confirmed' => array(
 				'label'   => esc_html__( 'Payment Confirmed', 'wellness-consult' ),
 				'subject' => 'Payment Confirmed - Ref: {reference_id}',
-				'body'    => "Hello {name},\n\nYour payment for consultation request {reference_id} ({consultation_type} - {consult_mode}) has been verified and confirmed.\n\nOur team is currently reviewing doctor availability in your preferred time window. You will receive scheduling details shortly.\n\nTrack your request: {track_url}\n\nWarm regards,\nConsultation Team",
+				'body'    => "Hello {name},\n\nYour payment for consultation request {reference_id} has been verified and confirmed.\n\nOur team is currently reviewing availability in your preferred time window. You will receive scheduling details shortly.\n\nTrack your request: {track_url}\n\nWarm regards,\n{site_name}",
 			),
 			'request_rejected' => array(
 				'label'   => esc_html__( 'Payment Proof Rejected', 'wellness-consult' ),
-				'subject' => 'Payment Verification Update - Ref: {reference_id}',
-				'body'    => "Hello {name},\n\nWe were unable to verify the payment transfer screenshot for request {reference_id}.\n\nReason: {rejection_reason}\n\nPlease visit your tracking link to upload a new, clear screenshot of your transfer proof:\n{track_url}\n\nWarm regards,\nConsultation Team",
+				'subject' => 'Payment Proof Rejected - Ref: {reference_id}',
+				'body'    => "Hello {name},\n\nWe were unable to verify the payment transfer screenshot for request {reference_id}.\n\nPlease visit your tracking link to upload a new, clear screenshot of your transfer proof:\n{track_url}\n\nWarm regards,\n{site_name}",
 			),
 			'appointment_scheduled' => array(
-				'label'   => esc_html__( 'Appointment Scheduled', 'wellness-consult' ),
-				'subject' => 'Consultation Scheduled - Ref: {reference_id}',
-				'body'    => "Hello {name},\n\nYour consultation is confirmed for:\nYour Local Time: {date_time_patient}\nConsultant Time: {date_time_consultant}\nMode: {consult_mode}\nPlatform: {platform}\n\nMeeting Access Link / Details:\n{meeting_link}\n\nPlease join 5 minutes before your scheduled appointment.\nTrack request: {track_url}\n\nWarm regards,\nConsultation Team",
+				'label'   => esc_html__( 'Appointment Scheduled (Alternate Format)', 'wellness-consult' ),
+				'subject' => 'Appointment Scheduled - Ref: {reference_id}',
+				'body'    => "Hello {name},\n\nYour appointment is scheduled for:\nYour Local Time: {date_time_patient}\nConsultant Time: {date_time_consultant}\nMode: {consult_mode}\nPlatform: {platform}\n\nMeeting Access Link / Details:\n{meeting_link}\n\nTrack request: {track_url}\n\nWarm regards,\n{site_name}",
+			),
+			'scheduled' => array(
+				'label'   => esc_html__( 'Appointment Scheduled (Confirmed)', 'wellness-consult' ),
+				'subject' => 'Appointment Scheduled - Ref: {reference_id}',
+				'body'    => "Hello {name},\n\nYour consultation is scheduled for:\nPatient time: {appointment_local}\nConsultant time: {appointment_consultant}\nMode: {consult_mode}\nPlatform: {platform}\nMeeting link or contact: {meeting_link}\n\nTrack request: {track_url}\n\nWarm regards,\n{site_name}",
+			),
+			'rescheduled' => array(
+				'label'   => esc_html__( 'Appointment Rescheduled', 'wellness-consult' ),
+				'subject' => 'Appointment Rescheduled - Ref: {reference_id}',
+				'body'    => "Hello {name},\n\nYour consultation has been rescheduled:\nPatient time: {appointment_local}\nConsultant time: {appointment_consultant}\nMode: {consult_mode}\nPlatform: {platform}\nMeeting link or contact: {meeting_link}\n\nTrack request: {track_url}\n\nWarm regards,\n{site_name}",
+			),
+			'cancelled' => array(
+				'label'   => esc_html__( 'Appointment Cancelled', 'wellness-consult' ),
+				'subject' => 'Appointment Cancelled - Ref: {reference_id}',
+				'body'    => "Hello {name},\n\nYour consultation request {reference_id} has been cancelled.\n\nTrack request: {track_url}\n\nWarm regards,\n{site_name}",
+			),
+			'completed' => array(
+				'label'   => esc_html__( 'Consultation Completed (Status Notice)', 'wellness-consult' ),
+				'subject' => 'Consultation Completed - Ref: {reference_id}',
+				'body'    => "Hello {name},\n\nYour consultation request {reference_id} is now marked as completed.\n\nWarm regards,\n{site_name}",
 			),
 			'reminder_24h' => array(
 				'label'   => esc_html__( '24-Hour Reminder', 'wellness-consult' ),
-				'subject' => 'Reminder: Consultation Tomorrow - Ref: {reference_id}',
-				'body'    => "Hello {name},\n\nThis is a reminder that your private consultation is scheduled for tomorrow at {date_time_patient}.\n\nMode: {consult_mode} via {platform}\nMeeting Link / Details: {meeting_link}\n\nWarm regards,\nConsultation Team",
+				'subject' => '24-Hour Reminder - Ref: {reference_id}',
+				'body'    => "Hello {name},\n\nThis is a reminder that your private consultation is scheduled for tomorrow at {date_time_patient}.\n\nMode: {consult_mode} via {platform}\n\nWarm regards,\n{site_name}",
 			),
 			'reminder_1h' => array(
 				'label'   => esc_html__( '1-Hour Reminder', 'wellness-consult' ),
-				'subject' => 'Starting Soon: Consultation in 1 Hour - Ref: {reference_id}',
-				'body'    => "Hello {name},\n\nYour private consultation starts in 1 hour at {date_time_patient}.\n\nMode: {consult_mode} via {platform}\nMeeting Link / Details: {meeting_link}\n\nWarm regards,\nConsultation Team",
+				'subject' => '1-Hour Reminder - Ref: {reference_id}',
+				'body'    => "Hello {name},\n\nYour private consultation starts in 1 hour at {date_time_patient}.\n\nMode: {consult_mode} via {platform}\n\nWarm regards,\n{site_name}",
 			),
 			'completed_thankyou' => array(
-				'label'   => esc_html__( 'Consultation Completed', 'wellness-consult' ),
-				'subject' => 'Thank you for your consultation - Ref: {reference_id}',
-				'body'    => "Hello {name},\n\nThank you for consulting with us today. We hope our session gave you clarity and support.\n\nIf you would like to book a follow-up review session or share anonymous feedback, please visit:\n{track_url}\n\nWarm regards,\nConsultation Team",
+				'label'   => esc_html__( 'Follow-up Thanks and Feedback Invitation', 'wellness-consult' ),
+				'subject' => 'Follow-up Thanks - Ref: {reference_id}',
+				'body'    => "Hello {name},\n\nThank you for meeting with us. If you would like to book a follow-up or share feedback, please visit:\n{track_url}\n\nWarm regards,\n{site_name}",
 			),
 		);
 	}

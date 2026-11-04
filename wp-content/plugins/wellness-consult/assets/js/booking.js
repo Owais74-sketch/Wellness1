@@ -19,6 +19,15 @@
 		}
 
 		var currentStep = 1;
+		var $paymentSection = $('#wc-step-2');
+		var $detailsSection = $('#wc-step-3');
+		$detailsSection.attr('id', 'wc-step-2').insertAfter($('#wc-step-1'));
+		$paymentSection.attr('id', 'wc-step-3').insertAfter($detailsSection);
+		$detailsSection.attr('aria-labelledby', 'wc-step-2-title').find('h2').attr('id', 'wc-step-2-title');
+		$paymentSection.attr('aria-labelledby', 'wc-step-3-title').find('h2').attr('id', 'wc-step-3-title');
+		$('#wc-trans-id-container, #wc-screenshot-section').insertBefore($paymentSection.find('.wc-step-buttons'));
+		$('.wc-step3-summary').insertAfter($paymentSection.find('.wc-step2-summary'));
+		var initialStep = $('input[name="wc_draft_nonce"]').length ? 3 : 1;
 
 		// ==========================================
 		// 1. SessionStorage Form Progress (Rule 3)
@@ -253,8 +262,14 @@
 		// ==========================================
 		function updatePaymentMethodUI() {
 			var $selected = $('input[name="payment_method_id"]:checked');
+			var $paymentSubmit = $('#wc-btn-step-2-next');
+			if (!initialDraftReady()) {
+				$paymentSubmit.prop('disabled', true).addClass('button-disabled');
+				updateSelectedPaymentDisplay();
+				return;
+			}
 			if (!$selected.length) {
-				$('#wc-btn-step-2-next').prop('disabled', true).addClass('button-disabled');
+				$paymentSubmit.prop('disabled', true).addClass('button-disabled');
 				updateSelectedPaymentDisplay();
 				return;
 			}
@@ -267,15 +282,19 @@
 				$('#wc-screenshot-section').slideUp(150);
 				$('#wc-trans-id-container').slideUp(150);
 				$('#wc_field_transaction_id').prop('required', false);
-				$('#wc-submit-booking-btn').text('Proceed to Secure Checkout →');
+				$paymentSubmit.text('Pay now');
 			} else {
 				$('#wc-screenshot-section').slideDown(150);
 				$('#wc-trans-id-container').slideDown(150);
 				$('#wc_field_transaction_id').prop('required', true);
-				$('#wc-submit-booking-btn').text('Submit Consultation Request →');
+				$paymentSubmit.text('Submit payment proof');
 			}
-			$('#wc-btn-step-2-next').prop('disabled', false).removeClass('button-disabled');
+			$paymentSubmit.prop('disabled', false).removeClass('button-disabled');
 			updateSelectedPaymentDisplay();
+		}
+
+		function initialDraftReady() {
+			return $('input[name="wc_draft_nonce"]').length > 0;
 		}
 
 		$('input[name="payment_method_id"]').on('change', function() {
@@ -283,6 +302,9 @@
 		});
 
 		// Initialize payment method UI state
+		if (!initialDraftReady()) {
+			$('#wc-submit-booking-btn').prop('disabled', false).removeClass('button-disabled').text('Continue to payment');
+		}
 		updatePaymentMethodUI();
 
 		// ==========================================
@@ -338,12 +360,6 @@
 		function filterPaymentMethodsByCountry(countryCode) {
 			var visibleCount = 0;
 			var $manualCards = $('.wc-payment-option-card[data-method-type="manual"]');
-			if (!$manualCards.length) {
-				$('#wc-no-methods-country-alert').hide();
-				$('#wc-btn-step-2-next').prop('disabled', true).addClass('button-disabled');
-				return;
-			}
-
 			$manualCards.each(function() {
 				var allowed = $(this).data('countries');
 				if (!allowed || !allowed.toString().length) {
@@ -364,23 +380,22 @@
 				}
 			});
 
-			if (visibleCount === 0) {
+			var $available = $('input[name="payment_method_id"]:not(:disabled)').filter(function() {
+				return $(this).closest('.wc-payment-option-card').css('display') !== 'none';
+			});
+			if (visibleCount === 0 && !$available.filter(function() { return $(this).data('kind') === 'online'; }).length) {
 				$('#wc-no-methods-country-alert').slideDown(150);
-				$('#wc-btn-step-2-next').prop('disabled', true).addClass('button-disabled');
+				$('#wc-submit-booking-btn').prop('disabled', true).addClass('button-disabled');
 			} else {
 				$('#wc-no-methods-country-alert').slideUp(150);
-				// If no visible radio is checked, check the first visible manual radio
-				var $checkedVisible = $('input[name="payment_method_id"]:visible:checked');
+				var $checkedVisible = $available.filter(':checked');
 				if (!$checkedVisible.length) {
-					var $firstVis = $('input[name="payment_method_id"]:visible').first();
+					var $firstVis = $available.first();
 					if ($firstVis.length) {
 						$firstVis.prop('checked', true).trigger('change');
 					}
 				}
-				var $currChecked = $('input[name="payment_method_id"]:visible:checked');
-				if ($currChecked.length && $currChecked.data('kind') !== 'online') {
-					$('#wc-btn-step-2-next').prop('disabled', false).removeClass('button-disabled');
-				}
+				if ($available.length) { updatePaymentMethodUI(); }
 			}
 		}
 
@@ -467,6 +482,9 @@
 			var backStep = $(this).data('back');
 			goToStep(backStep);
 		});
+		if (initialStep > 1) {
+			goToStep(initialStep);
+		}
 
 		// ==========================================
 		// 7. Client-Side Country & Age Checks
@@ -480,7 +498,7 @@
 				$('#wc-submit-booking-btn').prop('disabled', true).addClass('button-disabled');
 			} else {
 				$('#wc-country-blocked-alert').slideUp(150);
-				$('#wc-submit-booking-btn').prop('disabled', false).removeClass('button-disabled');
+				$('#wc-submit-booking-btn').prop('disabled', initialDraftReady()).toggleClass('button-disabled', initialDraftReady());
 			}
 		});
 
@@ -611,7 +629,21 @@
 		// 9. Submit Double-Click Prevention (Rule 3)
 		// ==========================================
 		$('#wc-booking-multistep-form').on('submit', function(e) {
-			var $btn = $('#wc-submit-booking-btn');
+			var stage = initialDraftReady() ? 'submit_manual' : 'create_draft';
+			var $btn = initialDraftReady() ? $('#wc-btn-step-2-next') : $('#wc-submit-booking-btn');
+
+			if (initialDraftReady()) {
+				var $selectedPayment = $('input[name="payment_method_id"]:checked');
+				if (!$selectedPayment.length || $selectedPayment.prop('disabled')) {
+					e.preventDefault();
+					alert('Please select an available payment method.');
+					return false;
+				}
+				stage = $selectedPayment.data('kind') === 'online' ? 'create_checkout' : 'submit_manual';
+				$('#wc-booking-stage').val(stage);
+			} else {
+				$('#wc-booking-stage').val('create_draft');
+			}
 
 			// Check client-side age
 			var age = parseInt($('#wc_field_age').val(), 10);
@@ -631,18 +663,30 @@
 				$('#wc_field_phone').focus();
 				return false;
 			}
+			if (!$('input[name="consent_agreed"]').is(':checked')) {
+				e.preventDefault();
+				alert('Please review and accept the required policies and health-data consent.');
+				$('input[name="consent_agreed"]').focus();
+				return false;
+			}
 
-			// Check screenshot if manual
+			// Proof is requested only after the browser-bound draft exists.
 			var selKind = $('input[name="payment_method_id"]:checked').data('kind');
-			if (selKind === 'manual' && (!$fileInput[0].files || !$fileInput[0].files.length)) {
+			if (stage === 'submit_manual' && selKind === 'manual' && (!$fileInput[0].files || !$fileInput[0].files.length)) {
 				e.preventDefault();
 				alert('Please upload your payment transfer screenshot proof before submitting.');
 				$('#wc-dropzone').focus();
 				return false;
 			}
+			if (stage === 'submit_manual' && selKind === 'manual' && !$('#wc_field_transaction_id').val().trim()) {
+				e.preventDefault();
+				alert('Please enter the transaction ID or sender name.');
+				$('#wc_field_transaction_id').focus();
+				return false;
+			}
 
 			// Disable submit button on first click
-			var loadingText = (selKind === 'online') ? 'Redirecting to secure checkout...' : 'Submitting...';
+			var loadingText = (stage === 'create_checkout') ? 'Redirecting to secure checkout...' : (stage === 'create_draft' ? 'Saving your details...' : 'Submitting payment proof...');
 			$btn.prop('disabled', true).addClass('button-disabled').text(loadingText);
 			return true;
 		});
