@@ -266,10 +266,12 @@
 			if (kind === 'online') {
 				$('#wc-screenshot-section').slideUp(150);
 				$('#wc-trans-id-container').slideUp(150);
+				$('#wc_field_transaction_id').prop('required', false);
 				$('#wc-submit-booking-btn').text('Proceed to Secure Checkout →');
 			} else {
 				$('#wc-screenshot-section').slideDown(150);
 				$('#wc-trans-id-container').slideDown(150);
+				$('#wc_field_transaction_id').prop('required', true);
 				$('#wc-submit-booking-btn').text('Submit Consultation Request →');
 			}
 			$('#wc-btn-step-2-next').prop('disabled', false).removeClass('button-disabled');

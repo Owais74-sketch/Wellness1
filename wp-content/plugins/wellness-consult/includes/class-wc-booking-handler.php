@@ -150,6 +150,16 @@ class WC_Booking_Handler {
 		$trans_id      = sanitize_text_field( wp_unslash( $_POST['transaction_id'] ?? '' ) );
 		$consent       = isset( $_POST['consent_agreed'] ) && '1' === (string) $_POST['consent_agreed'];
 
+		if ( WC_Fraud_Protection::is_blocked( $email, $phone, $country ) ) {
+			WC_Database::log( array(
+				'action' => 'blocked_booking_attempt',
+				'note'   => 'Booking submission matched a configured contact or country block.',
+			) );
+			self::set_flash( array( esc_html__( 'We cannot accept this booking.', 'wellness-consult' ) ), array() );
+			self::safe_redirect_and_exit( wp_get_referer() ? wp_get_referer() : home_url( '/book-consultation/' ) );
+			return;
+		}
+
 		$input_data = array(
 			'consultation_type' => $type_id,
 			'consult_mode'      => $consult_mode,
@@ -207,6 +217,9 @@ class WC_Booking_Handler {
 			$errors[] = esc_html__( 'Please select an active payment method.', 'wellness-consult' );
 		} elseif ( ! empty( $manual_methods[ $method_id ]['allowed_countries'] ) && ! in_array( $country, (array) $manual_methods[ $method_id ]['allowed_countries'], true ) ) {
 			$errors[] = esc_html__( 'The selected payment method is not available in your country of residence.', 'wellness-consult' );
+		}
+		if ( $is_manual && empty( $trans_id ) ) {
+			$errors[] = esc_html__( 'For manual payments, enter a transaction ID or the sender name.', 'wellness-consult' );
 		}
 
 		// 7. Age 18+ Rule (Rule 1 & SRS Section 10)
@@ -344,10 +357,13 @@ class WC_Booking_Handler {
 		update_post_meta( $post_id, '_wc_timezone', $timezone );
 		update_post_meta( $post_id, '_wc_contact_phone', $phone );
 		update_post_meta( $post_id, '_wc_contact_email', $email );
+		update_post_meta( $post_id, '_wc_contact_phone_hash', WC_Fraud_Protection::hash_value( 'phone', $phone ) );
+		update_post_meta( $post_id, '_wc_contact_email_hash', WC_Fraud_Protection::hash_value( 'email', $email ) );
 		update_post_meta( $post_id, '_wc_concern', $concern );
 		update_post_meta( $post_id, '_wc_message', $message );
 		update_post_meta( $post_id, '_wc_preferred_window', $pref_window );
 		update_post_meta( $post_id, '_wc_transaction_id', $trans_id );
+		update_post_meta( $post_id, '_wc_transaction_id_hash', WC_Fraud_Protection::hash_value( 'transaction', $trans_id ) );
 		update_post_meta( $post_id, '_wc_ip_hash', $ip_hash ); // Anonymized IP hash
 		update_post_meta( $post_id, '_wc_created_at', current_time( 'mysql', 1 ) );
 
@@ -522,5 +538,40 @@ class WC_Booking_Handler {
 			admin_url( 'admin.php?page=wc-all-requests' )
 		);
 		wp_mail( $admin_email, $admin_subject, $admin_body );
+	}
+
+	/**
+	 * Send an existing patient notification template for a request status event.
+	 *
+	 * @param string $event Event template key.
+	 * @param array  $args  Template values.
+	 * @return bool|null Email send result, or null when no patient email exists.
+	 */
+	public static function send_event_email( $event, $args ) {
+		if ( empty( $args['email'] ) ) {
+			return null;
+		}
+
+		$defaults  = WC_Options::get_default_email_templates();
+		$templates = get_option( 'wc_email_templates', $defaults );
+		$template  = $templates[ $event ] ?? ( $defaults[ $event ] ?? null );
+		if ( ! is_array( $template ) || empty( $template['subject'] ) || empty( $template['body'] ) ) {
+			return false;
+		}
+
+		$placeholders = array(
+			'{reference_id}'      => $args['reference_id'] ?? '',
+			'{name}'              => $args['name'] ?? '',
+			'{consultation_type}' => $args['consultation_type'] ?? '',
+			'{consult_mode}'      => $args['consult_mode'] ?? '',
+			'{platform}'          => $args['platform'] ?? '',
+			'{fee_usd}'           => $args['fee_usd'] ?? '',
+			'{track_url}'         => $args['track_url'] ?? '',
+			'{rejection_reason}'  => $args['rejection_reason'] ?? '',
+		);
+
+		$subject = str_replace( array_keys( $placeholders ), array_values( $placeholders ), $template['subject'] );
+		$body    = str_replace( array_keys( $placeholders ), array_values( $placeholders ), $template['body'] );
+		return wp_mail( $args['email'], $subject, $body );
 	}
 }

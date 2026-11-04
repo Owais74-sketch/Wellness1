@@ -16,6 +16,7 @@ if ( ! current_user_can( 'wc_manage_requests' ) && ! current_user_can( 'wc_manag
 }
 
 $is_admin        = current_user_can( 'wc_manage_all_requests' ) || current_user_can( 'administrator' );
+$can_verify      = current_user_can( 'wc_manage_requests' );
 $current_user_id = get_current_user_id();
 
 $action = isset( $_GET['action'] ) ? sanitize_key( wp_unslash( $_GET['action'] ) ) : 'list';
@@ -54,6 +55,12 @@ if ( 'view' === $action && $req_id > 0 ) :
 	$trans_id       = get_post_meta( $req_id, '_wc_transaction_id', true );
 	$proof_file     = get_post_meta( $req_id, '_wc_proof_file', true );
 	$proof_history  = get_post_meta( $req_id, '_wc_proof_history', true );
+	$current_proof_entry = is_array( $proof_history ) && ! empty( $proof_history )
+		? end( $proof_history )
+		: array();
+	$current_proof_mime = is_array( $current_proof_entry ) && isset( $current_proof_entry['mime'] )
+		? $current_proof_entry['mime']
+		: '';
 	$consent_record = get_post_meta( $req_id, '_wc_consent_record', true );
 	$ip_hash        = get_post_meta( $req_id, '_wc_ip_hash', true );
 	$all_countries  = WC_Options::get_all_iso_countries();
@@ -70,6 +77,15 @@ if ( 'view' === $action && $req_id > 0 ) :
 	$amount_received   = get_post_meta( $req_id, '_wc_amount_received', true );
 	$verification_note = get_post_meta( $req_id, '_wc_verification_note', true );
 	$rejection_reason  = get_post_meta( $req_id, '_wc_rejection_reason', true );
+	$verification_checklist = get_post_meta( $req_id, '_wc_payment_verification_checklist', true );
+	$new_proof_reason = get_post_meta( $req_id, '_wc_new_proof_request_reason', true );
+	$checklist_labels = array(
+		'account_visible'          => __( 'Money is visible in MY OWN account (not just the screenshot)', 'wellness-consult' ),
+		'amount_matches'           => __( 'Amount received matches the expected amount', 'wellness-consult' ),
+		'currency_matches'         => __( 'Currency matches', 'wellness-consult' ),
+		'sender_matches'           => __( 'Sender name / reference matches this request', 'wellness-consult' ),
+		'payment_after_submission' => __( 'Payment date is after the request was submitted', 'wellness-consult' ),
+	);
 
 	// Online Gateway Metadata (Phase 5: Stripe & PayPal)
 	$payment_provider_id = get_post_meta( $req_id, '_wc_payment_provider_id', true );
@@ -94,58 +110,109 @@ if ( 'view' === $action && $req_id > 0 ) :
 	$schedule_notice      = '';
 	$schedule_notice_type = 'success';
 
-	// Handle Payment Approval Submission (CR-2 Requirement 5)
-	if ( ! empty( $_POST['wc_verify_payment'] ) && check_admin_referer( 'wc_verify_payment_action_' . $req_id, 'wc_verify_payment_nonce' ) ) {
-		$raw_received = isset( $_POST['amount_received'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['amount_received'] ) ) ) : '';
-		$val_received = floatval( $raw_received );
-		$val_note     = sanitize_textarea_field( wp_unslash( $_POST['verification_note'] ?? '' ) );
+	// Handle payment actions only for users explicitly allowed to manage requests.
+	if ( isset( $_POST['wc_verify_payment'] ) ) {
+		if ( ! $can_verify ) {
+			wp_die( esc_html__( 'You do not have permission to verify payments.', 'wellness-consult' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'wc_verify_payment_action_' . $req_id, 'wc_verify_payment_nonce' );
+		$raw_received = isset( $_POST['amount_received'] ) && is_string( $_POST['amount_received'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['amount_received'] ) ) ) : '';
+		$val_received = is_numeric( $raw_received ) ? (float) $raw_received : 0;
+		$val_note     = isset( $_POST['verification_note'] ) && is_string( $_POST['verification_note'] ) ? sanitize_textarea_field( wp_unslash( $_POST['verification_note'] ) ) : '';
+		$override_reason = isset( $_POST['underpayment_override_reason'] ) && is_string( $_POST['underpayment_override_reason'] ) ? trim( sanitize_textarea_field( wp_unslash( $_POST['underpayment_override_reason'] ) ) ) : '';
+		$checklist_keys = array( 'account_visible', 'amount_matches', 'currency_matches', 'sender_matches', 'payment_after_submission' );
+		$submitted_checks = isset( $_POST['verification_checklist'] ) && is_array( $_POST['verification_checklist'] )
+			? array_map(
+				static function( $value ) {
+					return is_string( $value ) ? sanitize_key( $value ) : '';
+				},
+				wp_unslash( $_POST['verification_checklist'] )
+			)
+			: array();
+		$checks_complete = empty( array_diff( $checklist_keys, $submitted_checks ) );
+		$expected_val = (float) ( $amount_expected ? $amount_expected : $fee_usd );
 
-		if ( '' === $raw_received || $val_received <= 0 ) {
-			$schedule_notice      = esc_html__( 'Error: "Amount received (USD)" must be filled with a valid positive amount when approving payment.', 'wellness-consult' );
+		if ( WC_Status::STATUS_PENDING_VERIFICATION !== $status ) {
+			$schedule_notice = esc_html__( 'This request is no longer awaiting payment verification.', 'wellness-consult' );
 			$schedule_notice_type = 'error';
-		} elseif ( empty( $val_note ) ) {
-			$schedule_notice      = esc_html__( 'Error: A verification note is strictly required when approving payment.', 'wellness-consult' );
+		} elseif ( ! preg_match( '/^\d+(?:\.\d{1,2})?$/', $raw_received ) || $val_received <= 0 ) {
+			$schedule_notice = esc_html__( '"Amount received (USD)" must be a positive amount.', 'wellness-consult' );
+			$schedule_notice_type = 'error';
+		} elseif ( ! $checks_complete ) {
+			$schedule_notice = esc_html__( 'Complete every verification checklist item before approving payment.', 'wellness-consult' );
+			$schedule_notice_type = 'error';
+		} elseif ( $val_received < $expected_val && '' === $override_reason ) {
+			$schedule_notice = esc_html__( 'An underpayment override reason is required when the received amount is below the expected amount.', 'wellness-consult' );
 			$schedule_notice_type = 'error';
 		} else {
-			$expected_val = floatval( $amount_expected ? $amount_expected : $fee_usd );
-			$underpayment_warning = '';
-			if ( $val_received < $expected_val ) {
-				$shortfall = $expected_val - $val_received;
-				$underpayment_warning = sprintf( ' [WARNING: Received amount ($%0.2f) is lower than expected ($%0.2f). Shortfall: $%0.2f]', $val_received, $expected_val, $shortfall );
-			}
-
-			$full_log_note = sprintf(
-				'Payment verified by admin. Received: $%0.2f USD (Expected: $%0.2f USD). Note: %s%s',
+			$checklist_record = array(
+				'checks'     => $checklist_keys,
+				'checked_by' => $current_user_id,
+				'checked_at' => current_time( 'mysql', true ),
+			);
+			$log_note = sprintf(
+				'Payment verified. Received $%0.2f USD; expected $%0.2f USD. Checklist completed by user %d at %s. %s%s',
 				$val_received,
 				$expected_val,
-				$val_note,
-				$underpayment_warning
+				$current_user_id,
+				$checklist_record['checked_at'],
+				$val_note ? 'Note: ' . $val_note . '. ' : '',
+				$val_received < $expected_val ? 'Underpayment override: ' . $override_reason : ''
 			);
-
-			$transition_res = WC_Status::change_status( $req_id, WC_Status::STATUS_PAID_AWAITING_SCHEDULING, $full_log_note );
+			$transition_res = WC_Status::change_status( $req_id, WC_Status::STATUS_PAID_AWAITING_SCHEDULING, $log_note );
 			if ( is_wp_error( $transition_res ) ) {
-				$schedule_notice      = $transition_res->get_error_message();
+				$schedule_notice = $transition_res->get_error_message();
 				$schedule_notice_type = 'error';
 			} else {
+				$checklist_record['amount_received_usd'] = $val_received;
+				$checklist_record['expected_amount_usd'] = $expected_val;
+				$checklist_record['override_reason'] = $val_received < $expected_val ? $override_reason : '';
+				update_post_meta( $req_id, '_wc_payment_verification_checklist', $checklist_record );
 				update_post_meta( $req_id, '_wc_amount_received', $val_received );
 				update_post_meta( $req_id, '_wc_verification_note', $val_note );
 				update_post_meta( $req_id, '_wc_verified_by', $current_user_id );
-				update_post_meta( $req_id, '_wc_verified_at', current_time( 'mysql', 1 ) );
-				$status            = WC_Status::STATUS_PAID_AWAITING_SCHEDULING;
-				$amount_received   = $val_received;
+				update_post_meta( $req_id, '_wc_verified_at', $checklist_record['checked_at'] );
+				WC_Database::log( array(
+					'request_id'   => $req_id,
+					'reference_id' => $ref_id,
+					'action'       => 'payment_approved',
+					'from_status'  => WC_Status::STATUS_PENDING_VERIFICATION,
+					'to_status'    => WC_Status::STATUS_PAID_AWAITING_SCHEDULING,
+					'note'         => $log_note,
+				) );
+				$status = WC_Status::STATUS_PAID_AWAITING_SCHEDULING;
+				$amount_received = $val_received;
 				$verification_note = $val_note;
-				$schedule_notice   = esc_html__( 'Payment verified successfully! Request status updated to Paid - Awaiting Scheduling.', 'wellness-consult' );
-				if ( ! empty( $underpayment_warning ) ) {
-					$schedule_notice .= ' ' . esc_html__( 'Warning: Underpayment was detected and recorded in the permanent audit log.', 'wellness-consult' );
+				$verification_checklist = $checklist_record;
+				$send_result = WC_Booking_Handler::send_event_email( 'payment_confirmed', array(
+					'email'             => $email,
+					'reference_id'      => $ref_id,
+					'name'              => $name,
+					'consultation_type' => $type_name,
+					'consult_mode'      => WC_Options::get_mode_label( $consult_mode ),
+					'fee_usd'           => '$' . number_format( $expected_val, 2 ) . ' USD',
+					'track_url'          => home_url( '/track-my-request/?ref=' . rawurlencode( $ref_id ) ),
+				) );
+				$schedule_notice = esc_html__( 'Payment approved. The request is now awaiting scheduling.', 'wellness-consult' );
+				if ( false === $send_result ) {
+					$schedule_notice .= ' ' . esc_html__( 'The payment confirmation email could not be sent.', 'wellness-consult' );
+					$schedule_notice_type = 'error';
 				}
 			}
 		}
 	}
 
 	// Handle Payment Rejection Submission
-	if ( ! empty( $_POST['wc_reject_payment'] ) && check_admin_referer( 'wc_reject_payment_action_' . $req_id, 'wc_reject_payment_nonce' ) ) {
-		$rej_reason = sanitize_textarea_field( wp_unslash( $_POST['rejection_reason'] ?? '' ) );
-		if ( empty( $rej_reason ) ) {
+	if ( isset( $_POST['wc_reject_payment'] ) ) {
+		if ( ! $can_verify ) {
+			wp_die( esc_html__( 'You do not have permission to reject payment proofs.', 'wellness-consult' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'wc_reject_payment_action_' . $req_id, 'wc_reject_payment_nonce' );
+		$rej_reason = isset( $_POST['rejection_reason'] ) && is_string( $_POST['rejection_reason'] ) ? trim( sanitize_textarea_field( wp_unslash( $_POST['rejection_reason'] ) ) ) : '';
+		if ( WC_Status::STATUS_PENDING_VERIFICATION !== $status ) {
+			$schedule_notice = esc_html__( 'This request is no longer awaiting payment verification.', 'wellness-consult' );
+			$schedule_notice_type = 'error';
+		} elseif ( empty( $rej_reason ) ) {
 			$schedule_notice      = esc_html__( 'Error: Rejection reason must be filled when rejecting payment.', 'wellness-consult' );
 			$schedule_notice_type = 'error';
 		} else {
@@ -155,10 +222,90 @@ if ( 'view' === $action && $req_id > 0 ) :
 				$schedule_notice_type = 'error';
 			} else {
 				update_post_meta( $req_id, '_wc_rejection_reason', $rej_reason );
+				WC_Database::log( array(
+					'request_id'   => $req_id,
+					'reference_id' => $ref_id,
+					'action'       => 'payment_rejected',
+					'from_status'  => WC_Status::STATUS_PENDING_VERIFICATION,
+					'to_status'    => WC_Status::STATUS_REJECTED,
+					'note'         => $rej_reason,
+				) );
 				$status           = WC_Status::STATUS_REJECTED;
 				$rejection_reason = $rej_reason;
-				$schedule_notice  = esc_html__( 'Payment proof rejected. Patient will be prompted to re-upload proof on their tracking link.', 'wellness-consult' );
+				$send_result = WC_Booking_Handler::send_event_email( 'request_rejected', array(
+					'email'             => $email,
+					'reference_id'      => $ref_id,
+					'name'              => $name,
+					'consultation_type' => $type_name,
+					'consult_mode'      => WC_Options::get_mode_label( $consult_mode ),
+					'track_url'          => home_url( '/track-my-request/?ref=' . rawurlencode( $ref_id ) ),
+					'rejection_reason'  => $rej_reason,
+				) );
+				$schedule_notice = esc_html__( 'Payment proof rejected.', 'wellness-consult' );
+				if ( false === $send_result ) {
+					$schedule_notice .= ' ' . esc_html__( 'The rejection email could not be sent.', 'wellness-consult' );
+					$schedule_notice_type = 'error';
+				}
 			}
+		}
+	}
+
+	if ( isset( $_POST['wc_request_new_proof'] ) ) {
+		if ( ! $can_verify ) {
+			wp_die( esc_html__( 'You do not have permission to request a new proof.', 'wellness-consult' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'wc_request_new_proof_action_' . $req_id, 'wc_request_new_proof_nonce' );
+		$reason = isset( $_POST['new_proof_reason'] ) && is_string( $_POST['new_proof_reason'] ) ? trim( sanitize_textarea_field( wp_unslash( $_POST['new_proof_reason'] ) ) ) : '';
+		if ( WC_Status::STATUS_PENDING_VERIFICATION !== $status ) {
+			$schedule_notice = esc_html__( 'This request is no longer awaiting payment verification.', 'wellness-consult' );
+			$schedule_notice_type = 'error';
+		} elseif ( '' === $reason ) {
+			$schedule_notice = esc_html__( 'Enter a reason to request a new screenshot.', 'wellness-consult' );
+			$schedule_notice_type = 'error';
+		} else {
+			update_post_meta( $req_id, '_wc_new_proof_request_reason', $reason );
+			update_post_meta( $req_id, '_wc_new_proof_requested_at', current_time( 'mysql', true ) );
+			update_post_meta( $req_id, '_wc_new_proof_requested_by', $current_user_id );
+			WC_Database::log( array(
+				'request_id'   => $req_id,
+				'reference_id' => $ref_id,
+				'action'       => 'new_proof_requested',
+				'from_status'  => $status,
+				'to_status'    => $status,
+				'note'         => $reason,
+			) );
+			$new_proof_reason = $reason;
+			$schedule_notice = esc_html__( 'New screenshot request recorded.', 'wellness-consult' );
+		}
+	}
+
+	if ( isset( $_POST['wc_block_request_contact'] ) ) {
+		if ( ! $can_verify ) {
+			wp_die( esc_html__( 'You do not have permission to block a contact.', 'wellness-consult' ), '', array( 'response' => 403 ) );
+		}
+		check_admin_referer( 'wc_block_request_contact_action_' . $req_id, 'wc_block_request_contact_nonce' );
+		$reason = isset( $_POST['block_contact_reason'] ) && is_string( $_POST['block_contact_reason'] ) ? trim( sanitize_textarea_field( wp_unslash( $_POST['block_contact_reason'] ) ) ) : '';
+		$added = array();
+		if ( '' !== $reason ) {
+			foreach ( array( 'email' => $email, 'phone' => $phone ) as $type => $value ) {
+				if ( '' !== $value && WC_Fraud_Protection::add_block( $type, $value ) ) {
+					$added[] = $type;
+				}
+			}
+		}
+		if ( $added ) {
+			WC_Database::log( array(
+				'request_id'   => $req_id,
+				'reference_id' => $ref_id,
+				'action'       => 'block_request_contact',
+				'note'         => sprintf( 'Blocked %s contact from request. Reason: %s', implode( ' and ', $added ), $reason ),
+			) );
+			$schedule_notice = esc_html__( 'Contact block added.', 'wellness-consult' );
+		} else {
+			$schedule_notice = '' === $reason
+				? esc_html__( 'Enter a reason before blocking this contact.', 'wellness-consult' )
+				: esc_html__( 'No contact details are available to block.', 'wellness-consult' );
+			$schedule_notice_type = 'error';
 		}
 	}
 
@@ -277,6 +424,7 @@ if ( 'view' === $action && $req_id > 0 ) :
 	}
 
 	$proof_view_url = wp_nonce_url( admin_url( 'admin-post.php?action=wc_view_proof&request_id=' . $req_id ), 'wc_view_proof_' . $req_id );
+	$fraud_data = $can_verify ? WC_Fraud_Protection::get_request_flags( $req_id ) : array( 'flags' => array(), 'request_ids' => array() );
 	?>
 
 	<div class="wrap wc-admin-wrap">
@@ -291,6 +439,26 @@ if ( 'view' === $action && $req_id > 0 ) :
 		<?php if ( ! empty( $schedule_notice ) ) : ?>
 			<div class="notice notice-<?php echo esc_attr( $schedule_notice_type ); ?> is-dismissible" style="margin:15px 0;">
 				<p><?php echo esc_html( $schedule_notice ); ?></p>
+			</div>
+		<?php endif; ?>
+
+		<?php if ( $can_verify && ! empty( $fraud_data['flags'] ) ) : ?>
+			<div class="notice notice-warning">
+				<p><strong><?php esc_html_e( 'Payment review warning', 'wellness-consult' ); ?></strong></p>
+				<ul>
+					<?php foreach ( $fraud_data['flags'] as $fraud_flag ) : ?>
+						<li><?php echo esc_html( $fraud_flag ); ?></li>
+					<?php endforeach; ?>
+				</ul>
+				<?php if ( ! empty( $fraud_data['request_ids'] ) ) : ?>
+					<p><strong><?php esc_html_e( 'Possible duplicate requests:', 'wellness-consult' ); ?></strong>
+						<?php foreach ( $fraud_data['request_ids'] as $related_id ) : ?>
+							<a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-all-requests&action=view&id=' . absint( $related_id ) ) ); ?>"><?php echo esc_html( get_post_meta( $related_id, '_wc_reference_id', true ) ?: get_the_title( $related_id ) ); ?></a>
+							<?php if ( end( $fraud_data['request_ids'] ) !== $related_id ) : ?>, <?php endif; ?>
+						<?php endforeach; ?>
+					</p>
+				<?php endif; ?>
+				<p><?php esc_html_e( 'These are warnings only. Check your own account before making a decision.', 'wellness-consult' ); ?></p>
 			</div>
 		<?php endif; ?>
 
@@ -425,6 +593,15 @@ if ( 'view' === $action && $req_id > 0 ) :
 							</td>
 						</tr>
 					</table>
+					<?php if ( $can_verify && ( ! empty( $email ) || ! empty( $phone ) ) ) : ?>
+						<form method="post" style="margin-top:12px;" onsubmit="return confirm('<?php echo esc_attr__( 'Block this email and phone so they cannot submit another booking?', 'wellness-consult' ); ?>');">
+							<?php wp_nonce_field( 'wc_block_request_contact_action_' . $req_id, 'wc_block_request_contact_nonce' ); ?>
+							<input type="hidden" name="wc_block_request_contact" value="1">
+							<label for="block_contact_reason"><?php esc_html_e( 'Reason (activity log only) *', 'wellness-consult' ); ?></label>
+							<textarea name="block_contact_reason" id="block_contact_reason" rows="2" class="large-text" required></textarea>
+							<button type="submit" class="button button-secondary"><?php esc_html_e( 'Block this contact', 'wellness-consult' ); ?></button>
+						</form>
+					<?php endif; ?>
 				</div>
 
 				<!-- Section 3: Scheduling Form (CR-1 Rule 4) -->
@@ -617,11 +794,12 @@ if ( 'view' === $action && $req_id > 0 ) :
 				<div class="postbox" style="padding:16px;">
 					<h2 class="hndle" style="margin:0 0 12px 0;display:flex;align-items:center;justify-content:space-between;">
 						<span><?php esc_html_e( 'Payment Proof Verification', 'wellness-consult' ); ?></span>
-						<span class="badge" style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:3px;font-size:11px;font-weight:700;">
+						<span class="notice notice-info inline">
 							<?php echo esc_html( WC_Options::get_manual_payment_type_badge( $pay_method_type ? $pay_method_type : 'bank' ) ); ?>
 						</span>
 					</h2>
 
+					<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;align-items:start;">
 					<table style="width:100%;margin-bottom:14px;font-size:13px;line-height:1.6;">
 						<tr>
 							<td style="color:#64748b;width:140px;"><?php esc_html_e( 'Payment Method:', 'wellness-consult' ); ?></td>
@@ -629,7 +807,7 @@ if ( 'view' === $action && $req_id > 0 ) :
 						</tr>
 						<tr>
 							<td style="color:#64748b;"><?php esc_html_e( 'Amount Expected:', 'wellness-consult' ); ?></td>
-							<td><strong style="color:#0f3b4c;font-size:15px;">$<?php echo esc_html( number_format( (float) ( $amount_expected ? $amount_expected : $fee_usd ), 2 ) ); ?> USD</strong></td>
+							<td><strong>$<?php echo esc_html( number_format( (float) ( $amount_expected ? $amount_expected : $fee_usd ), 2 ) ); ?> USD</strong></td>
 						</tr>
 						<tr>
 							<td style="color:#64748b;"><?php esc_html_e( 'Amount Received (USD):', 'wellness-consult' ); ?></td>
@@ -655,8 +833,12 @@ if ( 'view' === $action && $req_id > 0 ) :
 
 					<!-- Screenshot Proof Viewer -->
 					<?php if ( ! empty( $proof_file ) ) : ?>
-						<div style="background:#f8fafc;border:1px solid #e2e8f0;padding:12px;border-radius:4px;margin-bottom:16px;text-align:center;">
-							<span class="dashicons dashicons-media-document" style="font-size:32px;width:32px;height:32px;color:#2a838e;margin-bottom:4px;"></span>
+						<div class="notice notice-info inline" style="padding:12px;margin:0 0 16px;text-align:center;">
+							<?php if ( in_array( $current_proof_mime, array( 'image/jpeg', 'image/png' ), true ) ) : ?>
+								<img src="<?php echo esc_url( $proof_view_url ); ?>" alt="<?php esc_attr_e( 'Submitted payment proof', 'wellness-consult' ); ?>" style="display:block;max-width:100%;max-height:360px;width:auto;height:auto;margin:0 auto 10px;">
+							<?php else : ?>
+								<span class="dashicons dashicons-media-document" style="font-size:32px;width:32px;height:32px;margin-bottom:4px;"></span>
+							<?php endif; ?>
 							<p style="margin:2px 0 10px 0;font-size:12px;word-break:break-all;">
 								<strong><?php echo esc_html( basename( $proof_file ) ); ?></strong>
 							</p>
@@ -670,11 +852,12 @@ if ( 'view' === $action && $req_id > 0 ) :
 							<p><?php esc_html_e( 'No proof file uploaded for this request.', 'wellness-consult' ); ?></p>
 						</div>
 					<?php endif; ?>
+					</div>
 
 					<!-- Status: Pending Verification -> Approval Form -->
-					<?php if ( WC_Status::STATUS_PENDING_VERIFICATION === $status ) : ?>
-						<div style="background:#f0fdf4;border:1px solid #bbf7d0;padding:14px;border-radius:6px;margin-top:12px;">
-							<h3 style="margin:0 0 10px 0;font-size:14px;color:#166534;display:flex;align-items:center;gap:6px;">
+					<?php if ( $can_verify && WC_Status::STATUS_PENDING_VERIFICATION === $status ) : ?>
+						<div class="postbox" style="padding:14px;margin-top:12px;">
+							<h3 style="margin:0 0 10px 0;font-size:14px;display:flex;align-items:center;gap:6px;">
 								<span class="dashicons dashicons-yes-alt"></span>
 								<?php esc_html_e( 'Approve Payment Verification', 'wellness-consult' ); ?>
 							</h3>
@@ -689,23 +872,32 @@ if ( 'view' === $action && $req_id > 0 ) :
 									</label>
 									<input type="number" step="0.01" min="0.01" name="amount_received" id="wc-input-amount-received" class="regular-text" style="width:100%;font-size:14px;font-weight:600;" value="<?php echo esc_attr( $amount_received ? number_format( (float) $amount_received, 2, '.', '' ) : '' ); ?>" placeholder="e.g. <?php echo esc_attr( number_format( (float) ( $amount_expected ? $amount_expected : $fee_usd ), 2, '.', '' ) ); ?>" required />
 									
-									<!-- Client side warning if received < expected -->
-									<div id="wc-underpayment-alert" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:6px 10px;border-radius:4px;margin-top:6px;font-size:12px;font-weight:600;">
+									<div id="wc-underpayment-alert" class="notice notice-warning inline" style="display:none;margin-top:6px;">
 										⚠️ <?php printf( esc_html__( 'Warning: Amount received is lower than expected fee ($%s USD). An underpayment alert will be recorded in the permanent audit log.', 'wellness-consult' ), esc_html( number_format( (float) ( $amount_expected ? $amount_expected : $fee_usd ), 2 ) ) ); ?>
 									</div>
 								</div>
 
-								<div style="margin-bottom:12px;">
-									<label for="verification_note" style="font-weight:600;display:block;margin-bottom:3px;font-size:13px;">
-										<?php esc_html_e( 'Verification Note *', 'wellness-consult' ); ?>
+								<fieldset class="wc-verification-checklist">
+									<legend><strong><?php esc_html_e( 'Required verification checklist', 'wellness-consult' ); ?></strong></legend>
+									<?php foreach ( $checklist_labels as $check_key => $check_label ) : ?>
+										<label style="display:block;margin:8px 0;">
+											<input type="checkbox" class="wc-verification-check" name="verification_checklist[]" value="<?php echo esc_attr( $check_key ); ?>">
+											<?php echo esc_html( $check_label ); ?>
+										</label>
+									<?php endforeach; ?>
+								</fieldset>
+
+								<div style="margin:12px 0;">
+									<label for="underpayment_override_reason" style="font-weight:600;display:block;margin-bottom:3px;">
+										<?php esc_html_e( 'Underpayment override reason (required only when amount is below expected)', 'wellness-consult' ); ?>
 									</label>
-									<textarea name="verification_note" id="verification_note" rows="2" style="width:100%;font-size:12px;" placeholder="<?php esc_attr_e( 'e.g. Verified in wire account; MT103 reference matches.', 'wellness-consult' ); ?>" required></textarea>
-									<p class="description" style="font-size:11px;margin-top:2px;">
-										<?php esc_html_e( 'Required when approving. This note is logged in the permanent audit trail.', 'wellness-consult' ); ?>
-									</p>
+									<textarea name="underpayment_override_reason" id="underpayment_override_reason" rows="2" class="large-text"></textarea>
 								</div>
 
-								<button type="submit" class="button button-primary" style="background:#059669;border-color:#047857;width:100%;font-weight:700;height:34px;">
+								<label for="verification_note"><?php esc_html_e( 'Optional verification note', 'wellness-consult' ); ?></label>
+								<textarea name="verification_note" id="verification_note" rows="2" class="large-text"></textarea>
+
+								<button type="submit" class="button button-primary" id="wc-approve-payment-button" disabled>
 									<span class="dashicons dashicons-yes" style="vertical-align:text-top;font-size:16px;"></span>
 									<?php esc_html_e( 'Verify & Approve Payment', 'wellness-consult' ); ?>
 								</button>
@@ -716,25 +908,38 @@ if ( 'view' === $action && $req_id > 0 ) :
 								var expectedFee = <?php echo (float) ( $amount_expected ? $amount_expected : $fee_usd ); ?>;
 								var input = document.getElementById('wc-input-amount-received');
 								var alertBox = document.getElementById('wc-underpayment-alert');
-								if (input && alertBox) {
-									input.addEventListener('input', function() {
-										var val = parseFloat(this.value);
-										if (!isNaN(val) && val > 0 && val < expectedFee) {
-											alertBox.style.display = 'block';
-										} else {
-											alertBox.style.display = 'none';
-										}
-									});
+								var override = document.getElementById('underpayment_override_reason');
+								var checks = document.querySelectorAll('.wc-verification-check');
+								var approve = document.getElementById('wc-approve-payment-button');
+								function updateApprovalState() {
+									var val = input ? parseFloat(input.value) : 0;
+									var underpaid = !isNaN(val) && val > 0 && val < expectedFee;
+									var allChecked = Array.prototype.every.call(checks, function(check) { return check.checked; });
+									if (alertBox) {
+										alertBox.style.display = underpaid ? 'block' : 'none';
+									}
+									if (approve) {
+										approve.disabled = !(allChecked && val > 0 && (!underpaid || (override && override.value.trim() !== '')));
+									}
 								}
+								if (input) {
+									input.addEventListener('input', updateApprovalState);
+								}
+								if (override) {
+									override.addEventListener('input', updateApprovalState);
+								}
+								Array.prototype.forEach.call(checks, function(check) {
+									check.addEventListener('change', updateApprovalState);
+								});
 							})();
 							</script>
 						</div>
 
-						<!-- Rejection Toggle -->
-						<details style="margin-top:14px;border-top:1px solid #e2e8f0;padding-top:10px;">
-							<summary style="cursor:pointer;color:#dc2626;font-weight:600;font-size:13px;">
+						<!-- Reject Payment -->
+						<details style="margin-top:14px;">
+							<summary style="cursor:pointer;font-weight:600;font-size:13px;">
 								<span class="dashicons dashicons-dismiss" style="vertical-align:text-top;font-size:16px;"></span>
-								<?php esc_html_e( 'Reject Payment Screenshot', 'wellness-consult' ); ?>
+								<?php esc_html_e( 'Reject payment', 'wellness-consult' ); ?>
 							</summary>
 							<form method="post" action="" style="margin-top:10px;">
 								<?php wp_nonce_field( 'wc_reject_payment_action_' . $req_id, 'wc_reject_payment_nonce' ); ?>
@@ -745,11 +950,25 @@ if ( 'view' === $action && $req_id > 0 ) :
 								</label>
 								<textarea name="rejection_reason" id="rejection_reason" rows="2" style="width:100%;font-size:12px;" placeholder="<?php esc_attr_e( 'e.g. Screenshot blurry; transaction amount does not match.', 'wellness-consult' ); ?>" required></textarea>
 
-								<button type="submit" class="button button-link-delete" style="margin-top:8px;" onclick="return confirm('<?php esc_attr_e( 'Reject this payment proof?', 'wellness-consult' ); ?>');">
-									<?php esc_html_e( 'Reject Proof & Request New Upload', 'wellness-consult' ); ?>
+								<button type="submit" class="button button-secondary" style="margin-top:8px;" onclick="return confirm('<?php echo esc_attr__( 'Reject this payment? The patient will receive a rejection email with this reason.', 'wellness-consult' ); ?>');">
+									<?php esc_html_e( 'Reject payment', 'wellness-consult' ); ?>
 								</button>
 							</form>
 						</details>
+
+						<details style="margin-top:12px;">
+							<summary style="cursor:pointer;font-weight:600;"><?php esc_html_e( 'Request a new screenshot', 'wellness-consult' ); ?></summary>
+							<form method="post" style="margin-top:10px;">
+								<?php wp_nonce_field( 'wc_request_new_proof_action_' . $req_id, 'wc_request_new_proof_nonce' ); ?>
+								<input type="hidden" name="wc_request_new_proof" value="1">
+								<label for="new_proof_reason"><?php esc_html_e( 'Reason *', 'wellness-consult' ); ?></label>
+								<textarea name="new_proof_reason" id="new_proof_reason" rows="2" class="large-text" required></textarea>
+								<button type="submit" class="button button-secondary"><?php esc_html_e( 'Record screenshot request', 'wellness-consult' ); ?></button>
+							</form>
+						</details>
+						<?php if ( $new_proof_reason ) : ?>
+							<p class="description"><?php printf( esc_html__( 'Latest screenshot request: %s', 'wellness-consult' ), esc_html( $new_proof_reason ) ); ?></p>
+						<?php endif; ?>
 
 					<?php elseif ( ! empty( $amount_received ) ) : ?>
 						<!-- Already Approved Summary -->
@@ -771,6 +990,29 @@ if ( 'view' === $action && $req_id > 0 ) :
 								<div style="font-size:12px;color:#334155;margin-top:4px;">
 									<strong><?php esc_html_e( 'Note:', 'wellness-consult' ); ?></strong> <?php echo esc_html( $verification_note ); ?>
 								</div>
+							<?php endif; ?>
+							<?php if ( is_array( $verification_checklist ) && ! empty( $verification_checklist['checked_by'] ) ) : ?>
+								<div style="font-size:12px;margin-top:8px;">
+									<strong><?php esc_html_e( 'Verification checklist completed by:', 'wellness-consult' ); ?></strong>
+									<?php
+									$verified_user = get_userdata( absint( $verification_checklist['checked_by'] ) );
+									echo esc_html( $verified_user ? $verified_user->display_name : __( 'Unknown user', 'wellness-consult' ) );
+									?>
+									<?php if ( ! empty( $verification_checklist['checked_at'] ) ) : ?>
+										<?php printf( esc_html__( ' on %s UTC', 'wellness-consult' ), esc_html( $verification_checklist['checked_at'] ) ); ?>
+									<?php endif; ?>
+								</div>
+								<ul style="margin:6px 0 0 18px;font-size:12px;">
+									<?php foreach ( (array) ( $verification_checklist['checks'] ?? array() ) as $check_key ) : ?>
+										<li><?php echo esc_html( $checklist_labels[ $check_key ] ?? $check_key ); ?></li>
+									<?php endforeach; ?>
+								</ul>
+								<?php if ( ! empty( $verification_checklist['override_reason'] ) ) : ?>
+									<div style="font-size:12px;margin-top:6px;">
+										<strong><?php esc_html_e( 'Underpayment override reason:', 'wellness-consult' ); ?></strong>
+										<?php echo esc_html( $verification_checklist['override_reason'] ); ?>
+									</div>
+								<?php endif; ?>
 							<?php endif; ?>
 						</div>
 
@@ -798,6 +1040,18 @@ if ( 'view' === $action && $req_id > 0 ) :
 								<li style="margin-bottom:8px;">
 									<strong>Upload #<?php echo esc_html( $idx + 1 ); ?>:</strong> <?php echo esc_html( $pentry['uploaded_at'] ?? '—' ); ?><br>
 									<span style="font-family:monospace;font-size:11px;color:#64748b;">SHA-256: <?php echo esc_html( substr( $pentry['hash'] ?? '', 0, 16 ) ); ?>...</span>
+									<?php
+									$history_proof_url = add_query_arg(
+										array(
+											'action'      => 'wc_view_proof',
+											'request_id'  => $req_id,
+											'proof_index' => absint( $idx ),
+										),
+										admin_url( 'admin-post.php' )
+									);
+									$history_proof_url = wp_nonce_url( $history_proof_url, 'wc_view_proof_' . $req_id );
+									?>
+									<a class="button button-small" href="<?php echo esc_url( $history_proof_url ); ?>" target="_blank" rel="noopener noreferrer"><?php esc_html_e( 'View proof', 'wellness-consult' ); ?></a>
 								</li>
 							<?php endforeach; ?>
 						</ul>
@@ -946,6 +1200,7 @@ $all_countries  = WC_Options::get_all_iso_countries();
 					$p_method  = get_post_meta( $cur_id, '_wc_payment_method', true );
 					$p_meth_id = get_post_meta( $cur_id, '_wc_payment_method_id', true );
 					$is_online_row = ( 'stripe' === $p_method || 'stripe' === $p_meth_id || 'paypal' === $p_method || 'paypal' === $p_meth_id );
+					$row_fraud_data = $can_verify ? WC_Fraud_Protection::get_request_flags( $cur_id ) : array( 'flags' => array() );
 					?>
 					<tr>
 						<td><code><strong><?php echo esc_html( $ref_id ? $ref_id : get_the_title() ); ?></strong></code></td>
@@ -963,6 +1218,11 @@ $all_countries  = WC_Options::get_all_iso_countries();
 							<?php if ( $is_online_row ) : ?>
 								<span style="display:block;font-size:10px;color:#0284c7;font-weight:600;margin-top:2px;">
 									<?php echo ( 'stripe' === $p_method || 'stripe' === $p_meth_id ) ? '⚡ Stripe' : '⚡ PayPal'; ?>
+								</span>
+							<?php endif; ?>
+							<?php if ( ! empty( $row_fraud_data['flags'] ) ) : ?>
+								<span class="notice notice-warning inline" title="<?php echo esc_attr( implode( '; ', $row_fraud_data['flags'] ) ); ?>">
+									<?php esc_html_e( 'Review flags', 'wellness-consult' ); ?>
 								</span>
 							<?php endif; ?>
 						</td>

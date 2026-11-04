@@ -47,6 +47,7 @@ if ( $delete_on_uninstall ) {
 		'wc_countries_settings',
 		'wc_general_settings',
 		'wc_email_templates',
+		'wc_blocked_contacts',
 		'wc_activity_log_db_version',
 	);
 

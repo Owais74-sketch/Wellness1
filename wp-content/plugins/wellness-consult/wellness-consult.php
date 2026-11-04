@@ -29,6 +29,7 @@ define( 'WC_PROOFS_URL', content_url( '/uploads/wc-proofs/' ) );
 // Core Includes
 require_once WC_PLUGIN_DIR . 'includes/class-wc-encryption.php';
 require_once WC_PLUGIN_DIR . 'includes/class-wc-database.php';
+require_once WC_PLUGIN_DIR . 'includes/class-wc-fraud-protection.php';
 require_once WC_PLUGIN_DIR . 'includes/class-wc-roles.php';
 require_once WC_PLUGIN_DIR . 'includes/class-wc-post-types.php';
 require_once WC_PLUGIN_DIR . 'includes/class-wc-status.php';

@@ -17,6 +17,56 @@ if ( ! current_user_can( 'wc_manage_settings' ) ) {
 $notice = '';
 $notice_type = 'success';
 
+$blocked_contacts = get_option( 'wc_blocked_contacts', array() );
+if ( ! is_array( $blocked_contacts ) ) {
+	$blocked_contacts = array();
+}
+
+if ( isset( $_POST['wc_block_contacts_submit'] ) ) {
+	check_admin_referer( 'wc_block_contacts_action', 'wc_block_contacts_nonce' );
+	$reason = isset( $_POST['block_reason'] ) && is_string( $_POST['block_reason'] ) ? trim( sanitize_textarea_field( wp_unslash( $_POST['block_reason'] ) ) ) : '';
+	$added  = array();
+	if ( '' !== $reason ) {
+		foreach ( array( 'email', 'phone', 'country' ) as $type ) {
+			$value = isset( $_POST[ 'block_' . $type ] ) && is_string( $_POST[ 'block_' . $type ] ) ? sanitize_text_field( wp_unslash( $_POST[ 'block_' . $type ] ) ) : '';
+			if ( '' !== $value && WC_Fraud_Protection::add_block( $type, $value ) ) {
+				$added[] = $type;
+			}
+		}
+	}
+
+	if ( $added ) {
+		$blocked_contacts = get_option( 'wc_blocked_contacts', array() );
+		$notice = esc_html__( 'Block rule saved.', 'wellness-consult' );
+		WC_Database::log( array(
+			'action' => 'add_booking_block',
+			'note'   => sprintf( 'Blocked %s. Reason: %s', implode( ', ', array_unique( $added ) ), $reason ),
+		) );
+	} else {
+		$notice = '' === $reason
+			? esc_html__( 'Enter a reason and at least one valid email, phone, or country.', 'wellness-consult' )
+			: esc_html__( 'No valid block value was added.', 'wellness-consult' );
+		$notice_type = 'error';
+	}
+}
+
+if ( isset( $_POST['wc_remove_block_submit'] ) ) {
+	check_admin_referer( 'wc_remove_block_action', 'wc_remove_block_nonce' );
+	$key = sanitize_text_field( wp_unslash( $_POST['block_key'] ?? '' ) );
+	if ( isset( $blocked_contacts[ $key ] ) ) {
+		unset( $blocked_contacts[ $key ] );
+		update_option( 'wc_blocked_contacts', $blocked_contacts, false );
+		$notice = esc_html__( 'Block rule removed.', 'wellness-consult' );
+		WC_Database::log( array(
+			'action' => 'remove_booking_block',
+			'note'   => 'Removed a booking block rule.',
+		) );
+	} else {
+		$notice = esc_html__( 'The selected block rule was not found.', 'wellness-consult' );
+		$notice_type = 'error';
+	}
+}
+
 $general_settings = get_option( 'wc_general_settings', array(
 	'min_reschedule_hours' => 6,
 	'max_reschedules'      => 1,
@@ -308,6 +358,61 @@ if ( isset( $_GET['action'] ) && 'export_settings' === $_GET['action'] && isset(
 			<input type="submit" name="submit_general" class="button button-primary" value="<?php esc_attr_e( 'Save All Settings', 'wellness-consult' ); ?>">
 		</p>
 	</form>
+
+	<div class="postbox" style="padding:16px;margin-top:24px;">
+		<h2 class="hndle"><?php esc_html_e( 'Booking Block List', 'wellness-consult' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Email addresses and phone numbers are stored as hashes. The reason is recorded only in the activity log.', 'wellness-consult' ); ?></p>
+		<form method="post">
+			<?php wp_nonce_field( 'wc_block_contacts_action', 'wc_block_contacts_nonce' ); ?>
+			<table class="form-table" role="presentation">
+				<tr>
+					<th scope="row"><label for="block_email"><?php esc_html_e( 'Email address', 'wellness-consult' ); ?></label></th>
+					<td><input type="email" id="block_email" name="block_email" class="regular-text" autocomplete="off"></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="block_phone"><?php esc_html_e( 'Phone number', 'wellness-consult' ); ?></label></th>
+					<td><input type="text" id="block_phone" name="block_phone" class="regular-text" autocomplete="off"></td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="block_country"><?php esc_html_e( 'Country', 'wellness-consult' ); ?></label></th>
+					<td>
+						<select id="block_country" name="block_country">
+							<option value=""><?php esc_html_e( 'Do not block a country', 'wellness-consult' ); ?></option>
+							<?php foreach ( WC_Options::get_all_iso_countries() as $code => $country_name ) : ?>
+								<option value="<?php echo esc_attr( $code ); ?>"><?php echo esc_html( $country_name ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</td>
+				</tr>
+				<tr>
+					<th scope="row"><label for="block_reason"><?php esc_html_e( 'Reason (activity log only)', 'wellness-consult' ); ?></label></th>
+					<td><textarea id="block_reason" name="block_reason" rows="2" class="large-text" required></textarea></td>
+				</tr>
+			</table>
+			<p><button type="submit" class="button button-primary" name="wc_block_contacts_submit" value="1"><?php esc_html_e( 'Add Block Rule', 'wellness-consult' ); ?></button></p>
+		</form>
+		<?php if ( $blocked_contacts ) : ?>
+			<table class="widefat striped">
+				<thead><tr><th><?php esc_html_e( 'Type', 'wellness-consult' ); ?></th><th><?php esc_html_e( 'Stored value', 'wellness-consult' ); ?></th><th><?php esc_html_e( 'Added', 'wellness-consult' ); ?></th><th><?php esc_html_e( 'Action', 'wellness-consult' ); ?></th></tr></thead>
+				<tbody>
+					<?php foreach ( $blocked_contacts as $key => $block ) : ?>
+						<tr>
+							<td><?php echo esc_html( ucfirst( $block['type'] ?? '' ) ); ?></td>
+							<td><code><?php echo esc_html( 'country' === ( $block['type'] ?? '' ) ? $block['value'] : substr( $block['value'] ?? '', 0, 16 ) . '…' ); ?></code></td>
+							<td><?php echo esc_html( $block['created_at'] ?? '—' ); ?></td>
+							<td>
+								<form method="post">
+									<?php wp_nonce_field( 'wc_remove_block_action', 'wc_remove_block_nonce' ); ?>
+									<input type="hidden" name="block_key" value="<?php echo esc_attr( $key ); ?>">
+									<button type="submit" class="button button-secondary" name="wc_remove_block_submit" value="1" onclick="return confirm('<?php echo esc_attr__( 'Remove this booking block rule?', 'wellness-consult' ); ?>');"><?php esc_html_e( 'Remove', 'wellness-consult' ); ?></button>
+								</form>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+		<?php endif; ?>
+	</div>
 
 	<!-- Delivery Platforms Configuration Card (CR-1) -->
 	<div class="wc-card" style="background:#fff;border:1px solid #ccd0d4;padding:20px;margin-top:30px;border-radius:4px;">

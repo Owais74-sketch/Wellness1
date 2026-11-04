@@ -803,11 +803,11 @@ class WC_Booking_Form {
 							<textarea id="wc_field_message" name="message" rows="4" maxlength="1000" class="wc-textarea" placeholder="<?php esc_attr_e( 'Briefly share what you would like to discuss with the consultant...', 'wellness-consult' ); ?>"><?php echo esc_textarea( $old_data['message'] ?? '' ); ?></textarea>
 						</div>
 
-						<!-- Optional Transaction ID or sender name for manual transfers (CR-2) -->
+						<!-- Transaction reference for manual transfers -->
 						<div class="wc-field-group wc-span-full" id="wc-trans-id-container">
-							<label for="wc_field_transaction_id"><?php esc_html_e( 'Transaction ID or sender name (Optional)', 'wellness-consult' ); ?></label>
+							<label for="wc_field_transaction_id"><?php esc_html_e( 'Transaction ID or sender name (Required for manual payment)', 'wellness-consult' ); ?></label>
 							<input type="text" id="wc_field_transaction_id" name="transaction_id" value="<?php echo esc_attr( $old_data['transaction_id'] ?? '' ); ?>" class="wc-input" placeholder="<?php esc_attr_e( 'e.g. Wire MT103 reference, Wise transaction ID, or sender account name', 'wellness-consult' ); ?>" />
-							<span class="wc-help-text"><?php esc_html_e( 'Helps our accounting team match your transfer faster. If you do not have a transaction code yet, enter the sender account name.', 'wellness-consult' ); ?></span>
+							<span class="wc-help-text"><?php esc_html_e( 'Enter the transaction ID or sender name. A wrong or reused proof will be rejected and may lead to a block.', 'wellness-consult' ); ?></span>
 						</div>
 
 						<!-- SCREENSHOT UPLOAD SECTION (Rule 2) -->

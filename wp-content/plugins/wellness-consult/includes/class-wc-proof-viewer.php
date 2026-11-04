@@ -77,11 +77,19 @@ class WC_Proof_Viewer {
 			}
 		}
 
-		// Locate file from post meta
-		$relative_file = get_post_meta( $request_id, '_wc_proof_file', true );
-		if ( empty( $relative_file ) ) {
-			$history = get_post_meta( $request_id, '_wc_proof_history', true );
-			if ( is_array( $history ) && ! empty( $history ) ) {
+		// Locate the requested proof entry, defaulting to the current upload.
+		$relative_file = '';
+		$history = get_post_meta( $request_id, '_wc_proof_history', true );
+		if ( isset( $_GET['proof_index'] ) ) {
+			$proof_index = absint( $_GET['proof_index'] );
+			if ( ! is_array( $history ) || ! isset( $history[ $proof_index ] ) ) {
+				status_header( 404 );
+				wp_die( esc_html__( 'The requested proof history entry was not found.', 'wellness-consult' ), 'Not Found', array( 'response' => 404 ) );
+			}
+			$relative_file = $history[ $proof_index ]['relative_path'] ?? ( $history[ $proof_index ]['path'] ?? '' );
+		} else {
+			$relative_file = get_post_meta( $request_id, '_wc_proof_file', true );
+			if ( empty( $relative_file ) && is_array( $history ) && ! empty( $history ) ) {
 				$last_entry = end( $history );
 				$relative_file = $last_entry['relative_path'] ?? ( $last_entry['path'] ?? '' );
 			}
@@ -96,7 +104,7 @@ class WC_Proof_Viewer {
 		$base_dir  = realpath( WC_PROOFS_DIR );
 		$full_path = realpath( WC_PROOFS_DIR . $relative_file );
 
-		if ( false === $full_path || false === $base_dir || 0 !== strpos( $full_path, $base_dir ) || ! file_exists( $full_path ) ) {
+		if ( false === $full_path || false === $base_dir || 0 !== strpos( $full_path, trailingslashit( $base_dir ) ) || ! is_file( $full_path ) ) {
 			status_header( 404 );
 			wp_die( esc_html__( 'Payment proof file could not be located in secure storage.', 'wellness-consult' ), 'Not Found', array( 'response' => 404 ) );
 		}
