@@ -206,6 +206,7 @@
 				// Update Step 2 Summary
 				$('#wc-display-selected-type').text(typeName);
 				$('#wc-display-selected-mode').text(modeName);
+				$('#wc-display-selected-duration').text(parseInt($type.data('duration'), 10) + ' minutes');
 				$('#wc-display-selected-fee').text(formattedFee);
 
 				// Update dynamic exact fee and copy amount buttons on all payment cards (CR-2)
@@ -217,6 +218,14 @@
 				$('#wc-step3-display-mode').text(modeName);
 				$('#wc-step3-display-fee').text(formattedFee);
 			}
+		}
+
+		function updateSelectedPaymentDisplay() {
+			var $selected = $('input[name="payment_method_id"]:checked');
+			var methodName = $selected.length
+				? $selected.closest('.wc-payment-option-card').find('.wc-method-header-title strong').first().text().trim()
+				: '—';
+			$('#wc-step3-display-method').text(methodName);
 		}
 
 		$('input[name="consultation_type"]').on('change', function() {
@@ -244,7 +253,11 @@
 		// ==========================================
 		function updatePaymentMethodUI() {
 			var $selected = $('input[name="payment_method_id"]:checked');
-			if (!$selected.length) return;
+			if (!$selected.length) {
+				$('#wc-btn-step-2-next').prop('disabled', true).addClass('button-disabled');
+				updateSelectedPaymentDisplay();
+				return;
+			}
 
 			var kind = $selected.data('kind');
 			$('.wc-payment-option-card').removeClass('is-selected');
@@ -260,6 +273,7 @@
 				$('#wc-submit-booking-btn').text('Submit Consultation Request →');
 			}
 			$('#wc-btn-step-2-next').prop('disabled', false).removeClass('button-disabled');
+			updateSelectedPaymentDisplay();
 		}
 
 		$('input[name="payment_method_id"]').on('change', function() {
@@ -321,7 +335,14 @@
 		// ==========================================
 		function filterPaymentMethodsByCountry(countryCode) {
 			var visibleCount = 0;
-			$('.wc-payment-option-card[data-method-type="manual"]').each(function() {
+			var $manualCards = $('.wc-payment-option-card[data-method-type="manual"]');
+			if (!$manualCards.length) {
+				$('#wc-no-methods-country-alert').hide();
+				$('#wc-btn-step-2-next').prop('disabled', true).addClass('button-disabled');
+				return;
+			}
+
+			$manualCards.each(function() {
 				var allowed = $(this).data('countries');
 				if (!allowed || !allowed.toString().length) {
 					$(this).show();
@@ -429,11 +450,12 @@
 
 			if (currentStep === 2) {
 				var $selMethod = $('input[name="payment_method_id"]:checked');
-				if (!$selMethod.length) {
+				if (!$selMethod.length || $selMethod.prop('disabled')) {
 					alert('Please select a payment method.');
 					return;
 				}
 				updatePaymentMethodUI();
+				updateSelectedPaymentDisplay();
 			}
 
 			goToStep(nextStep);

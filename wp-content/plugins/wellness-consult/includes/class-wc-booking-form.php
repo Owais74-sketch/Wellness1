@@ -113,10 +113,9 @@ class WC_Booking_Form {
 		$payment_settings = get_option( 'wc_payment_settings', array() );
 		$has_stripe = class_exists( 'WC_Gateway_Stripe' ) && WC_Gateway_Stripe::is_available();
 		$has_paypal = class_exists( 'WC_Gateway_PayPal' ) && WC_Gateway_PayPal::is_available();
-		$has_any_payment = ! empty( $active_manual ) || $has_stripe || $has_paypal;
 
-		// 4. Rule 1: If no active consultation type or no active payment method exists, show friendly message
-		if ( empty( $active_types ) || ! $has_any_payment ) {
+		// 4. Booking can still be displayed when payment methods are not configured.
+		if ( empty( $active_types ) ) {
 			return self::render_unavailable_notice();
 		}
 
@@ -356,22 +355,10 @@ class WC_Booking_Form {
 						<?php esc_html_e( '2. Choose Payment Method', 'wellness-consult' ); ?>
 					</h2>
 					<p class="wc-step-desc">
-						<?php esc_html_e( 'Select your preferred international transfer method below. Complete the payment in your banking or wallet app, then upload the receipt screenshot.', 'wellness-consult' ); ?>
+						<?php esc_html_e( 'Select a payment method. Complete your payment, then upload the receipt screenshot with your booking details.', 'wellness-consult' ); ?>
 					</p>
 
-					<!-- International Transfer Processing Notice (Requirement 4) -->
-					<div class="wc-intl-notice-card" role="status">
-						<div class="wc-intl-notice-icon">⏱</div>
-						<div class="wc-intl-notice-body">
-							<strong><?php esc_html_e( 'International Transfer Settlement Notice:', 'wellness-consult' ); ?></strong>
-							<p>
-								<?php esc_html_e( 'Notice: International transfers can take 1 to 5 working days to settle. Your private consultation time is assigned after the payment is verified by our team.', 'wellness-consult' ); ?>
-							</p>
-						</div>
-					</div>
-
-					<!-- Selected Fee Summary Box (CR-1: Type, Mode, Fee) -->
-					<div class="wc-fee-summary-strip">
+					<div class="wc-fee-summary-strip wc-step2-summary">
 						<div class="wc-summary-col">
 							<span class="wc-summary-label"><?php esc_html_e( 'Package:', 'wellness-consult' ); ?></span>
 							<strong id="wc-display-selected-type">—</strong>
@@ -380,10 +367,17 @@ class WC_Booking_Form {
 							<span class="wc-summary-label"><?php esc_html_e( 'Mode:', 'wellness-consult' ); ?></span>
 							<strong id="wc-display-selected-mode">—</strong>
 						</div>
+						<div class="wc-summary-col">
+							<span class="wc-summary-label"><?php esc_html_e( 'Duration:', 'wellness-consult' ); ?></span>
+							<strong id="wc-display-selected-duration">—</strong>
+						</div>
 						<div class="wc-summary-col wc-summary-total">
-							<span class="wc-summary-label"><?php esc_html_e( 'Total Fee:', 'wellness-consult' ); ?></span>
+							<span class="wc-summary-label"><?php esc_html_e( 'Fee:', 'wellness-consult' ); ?></span>
 							<strong class="wc-fee-strip-amount" id="wc-display-selected-fee">$0.00 USD</strong>
 						</div>
+						<button type="button" class="wc-summary-change wc-btn-back" data-back="1">
+							<?php esc_html_e( 'Change', 'wellness-consult' ); ?>
+						</button>
 					</div>
 
 					<!-- Optional Country Filter for Payment Methods -->
@@ -411,13 +405,27 @@ class WC_Booking_Form {
 						</div>
 					</div>
 
-					<div class="wc-payment-methods-grid" id="wc-payment-methods-grid">
+					<?php if ( empty( $active_manual ) ) : ?>
+						<div class="wc-no-methods-alert wc-no-methods-setup" role="status">
+							<div class="wc-no-methods-content">
+								<h4><?php esc_html_e( 'Payment methods are not set up yet', 'wellness-consult' ); ?></h4>
+								<p><?php esc_html_e( 'Please return later or contact the site administrator for assistance.', 'wellness-consult' ); ?></p>
+								<?php if ( current_user_can( 'wc_manage_payments' ) ) : ?>
+									<a href="<?php echo esc_url( admin_url( 'admin.php?page=wc-payments' ) ); ?>"><?php esc_html_e( 'Consultations > Payments', 'wellness-consult' ); ?></a>
+								<?php endif; ?>
+							</div>
+						</div>
+					<?php endif; ?>
+
+					<div class="wc-payment-methods-grid" id="wc-payment-methods-grid" role="radiogroup" aria-labelledby="wc-step-2-title">
 						<!-- Manual Transfer Options -->
 						<?php
-						$first_manual = true;
+						$checked_manual = false;
+						$preferred_method_id = $old_data['payment_method_id'] ?? '';
+						$preferred_method_exists = $preferred_method_id && isset( $active_manual[ $preferred_method_id ] );
 						foreach ( $active_manual as $mid => $method ) :
-							$checked = ( ! empty( $old_data['payment_method_id'] ) && $old_data['payment_method_id'] === $mid ) || ( empty( $old_data['payment_method_id'] ) && $first_manual );
-							$first_manual = false;
+							$checked = ( $preferred_method_exists && $preferred_method_id === $mid ) || ( ! $preferred_method_exists && empty( $checked_manual ) );
+							$checked_manual = $checked_manual || $checked;
 							$m_type = $method['method_type'] ?? 'bank';
 							$countries_attr = ! empty( $method['allowed_countries'] ) ? implode( ',', (array) $method['allowed_countries'] ) : '';
 						?>
@@ -557,38 +565,45 @@ class WC_Booking_Form {
 									<!-- TYPE 4: Other / Instructions -->
 									<?php else : ?>
 										<?php if ( ! empty( $method['instructions'] ) ) : ?>
-											<div class="wc-manual-instructions">
-												<?php echo nl2br( esc_html( $method['instructions'] ) ); ?>
+											<div class="wc-copyable-item wc-manual-instructions">
+												<span class="wc-copy-target"><?php echo nl2br( esc_html( $method['instructions'] ) ); ?></span>
+												<button type="button" class="wc-copy-btn" aria-label="<?php esc_attr_e( 'Copy payment instructions', 'wellness-consult' ); ?>"><?php esc_html_e( 'Copy', 'wellness-consult' ); ?></button>
 											</div>
 										<?php endif; ?>
 									<?php endif; ?>
 
 									<!-- Method Specific Notes (if provided) -->
-									<?php if ( ! empty( $method['notes'] ) && 'other' !== $m_type ) : ?>
+									<?php if ( ! empty( $method['notes'] ) && $method['notes'] !== ( $method['instructions'] ?? '' ) ) : ?>
 										<div class="wc-method-custom-notes">
-											<?php echo nl2br( esc_html( $method['notes'] ) ); ?>
+											<span class="wc-copy-target"><?php echo nl2br( esc_html( $method['notes'] ) ); ?></span>
+											<button type="button" class="wc-copy-btn" aria-label="<?php esc_attr_e( 'Copy payment notes', 'wellness-consult' ); ?>"><?php esc_html_e( 'Copy', 'wellness-consult' ); ?></button>
 										</div>
 									<?php endif; ?>
 
-									<!-- The 3 MANDATORY Notes (Requirement 2) -->
+									<!-- Required international payment notes -->
 									<div class="wc-method-mandatory-notes">
 										<div class="wc-mandatory-note-item">
 											<span class="wc-note-bullet">📌</span>
 											<div class="wc-note-content">
-												<strong><?php esc_html_e( 'Use your Reference ID as the payment note:', 'wellness-consult' ); ?></strong>
-												<span><?php esc_html_e( 'Your unique Reference ID is generated immediately upon submitting this booking form. You will also receive it via confirmation email, and you can add or verify your transaction reference anytime on the Track My Request page.', 'wellness-consult' ); ?></span>
+												<span><?php esc_html_e( 'Use your Reference ID as the payment note (you get it right after submitting)', 'wellness-consult' ); ?></span>
 											</div>
 										</div>
 										<div class="wc-mandatory-note-item">
 											<span class="wc-note-bullet">⚖️</span>
 											<div class="wc-note-content">
-												<span><?php esc_html_e( 'The sender pays all bank and transfer fees; the amount received must be the full amount shown.', 'wellness-consult' ); ?></span>
+												<span><?php esc_html_e( 'The sender pays all bank and transfer fees; the full amount must be received', 'wellness-consult' ); ?></span>
 											</div>
 										</div>
 										<div class="wc-mandatory-note-item">
 											<span class="wc-note-bullet">🧾</span>
 											<div class="wc-note-content">
-												<strong><?php esc_html_e( 'Pay first, then upload the screenshot or receipt.', 'wellness-consult' ); ?></strong>
+												<span><?php esc_html_e( 'Pay first, then upload the screenshot or receipt next', 'wellness-consult' ); ?></span>
+											</div>
+										</div>
+										<div class="wc-mandatory-note-item">
+											<span class="wc-note-bullet">🌐</span>
+											<div class="wc-note-content">
+												<span><?php esc_html_e( 'International transfers can take 1 to 5 working days; your time slot is assigned after the payment is verified', 'wellness-consult' ); ?></span>
 											</div>
 										</div>
 									</div>
@@ -596,26 +611,15 @@ class WC_Booking_Form {
 							</div>
 						<?php endforeach; ?>
 
-						<!-- Stripe Online Option -->
+						<!-- Online gateways are shown as informational cards only in this update. -->
 						<?php if ( $has_stripe ) : ?>
 							<div class="wc-payment-option-card wc-card-online" data-method-type="online" data-countries="" id="wc-method-card-stripe">
-								<label class="wc-payment-option-label" for="method_stripe">
-									<input type="radio" name="payment_method_id" id="method_stripe" value="stripe" data-kind="online" <?php checked( ( $old_data['payment_method_id'] ?? '' ) === 'stripe' ); ?> />
+								<div class="wc-payment-option-label">
+									<input type="radio" id="method_stripe" disabled aria-label="<?php esc_attr_e( 'Stripe checkout available in the next update', 'wellness-consult' ); ?>" />
 									<div class="wc-payment-option-title-row">
 										<div class="wc-method-header-title">
-											<strong><?php esc_html_e( 'Credit / Debit Card (Stripe Checkout)', 'wellness-consult' ); ?></strong>
-											<span class="wc-badge-online"><?php esc_html_e( 'Instant Online Checkout', 'wellness-consult' ); ?></span>
-										</div>
-									</div>
-								</label>
-								<div class="wc-payment-details-drawer">
-									<div class="wc-online-details-content">
-										<p class="wc-online-desc">
-											<?php esc_html_e( 'Fast, secure card checkout via Stripe. Accepts Visa, Mastercard, American Express, Apple Pay, and Google Pay. You will be redirected to complete payment directly on Stripe\'s encrypted checkout page.', 'wellness-consult' ); ?>
-										</p>
-										<div class="wc-security-reassurance">
-											<span class="wc-note-bullet">🔒</span>
-											<span><?php esc_html_e( 'Zero card details touch our website. Payment status confirms automatically upon completion.', 'wellness-consult' ); ?></span>
+											<strong><?php esc_html_e( 'Stripe', 'wellness-consult' ); ?></strong>
+											<span class="wc-badge-online"><?php esc_html_e( 'Available in the next update', 'wellness-consult' ); ?></span>
 										</div>
 									</div>
 								</div>
@@ -625,23 +629,12 @@ class WC_Booking_Form {
 						<!-- PayPal Online Option -->
 						<?php if ( $has_paypal ) : ?>
 							<div class="wc-payment-option-card wc-card-online" data-method-type="online" data-countries="" id="wc-method-card-paypal">
-								<label class="wc-payment-option-label" for="method_paypal">
-									<input type="radio" name="payment_method_id" id="method_paypal" value="paypal" data-kind="online" <?php checked( ( $old_data['payment_method_id'] ?? '' ) === 'paypal' ); ?> />
+								<div class="wc-payment-option-label">
+									<input type="radio" id="method_paypal" disabled aria-label="<?php esc_attr_e( 'PayPal checkout available in the next update', 'wellness-consult' ); ?>" />
 									<div class="wc-payment-option-title-row">
 										<div class="wc-method-header-title">
-											<strong><?php esc_html_e( 'PayPal Secure Checkout', 'wellness-consult' ); ?></strong>
-											<span class="wc-badge-online"><?php esc_html_e( 'Instant Online Checkout', 'wellness-consult' ); ?></span>
-										</div>
-									</div>
-								</label>
-								<div class="wc-payment-details-drawer">
-									<div class="wc-online-details-content">
-										<p class="wc-online-desc">
-											<?php esc_html_e( 'Pay conveniently using your PayPal balance, connected bank account, or cards. You will be redirected to PayPal\'s hosted checkout to approve payment.', 'wellness-consult' ); ?>
-										</p>
-										<div class="wc-security-reassurance">
-											<span class="wc-note-bullet">🔒</span>
-											<span><?php esc_html_e( 'Zero payment credentials touch our website. Payment status confirms automatically upon return.', 'wellness-consult' ); ?></span>
+											<strong><?php esc_html_e( 'PayPal', 'wellness-consult' ); ?></strong>
+											<span class="wc-badge-online"><?php esc_html_e( 'Available in the next update', 'wellness-consult' ); ?></span>
 										</div>
 									</div>
 								</div>
@@ -651,10 +644,10 @@ class WC_Booking_Form {
 
 					<div class="wc-step-buttons">
 						<button type="button" class="button button-secondary wc-btn-back" data-back="1">
-							&larr; <?php esc_html_e( 'Back to Packages', 'wellness-consult' ); ?>
+							&larr; <?php esc_html_e( 'Back', 'wellness-consult' ); ?>
 						</button>
-						<button type="button" class="button button-primary wc-btn-next" id="wc-btn-step-2-next" data-next="3">
-							<?php esc_html_e( 'Continue to Patient Details', 'wellness-consult' ); ?> &rarr;
+						<button type="button" class="button button-primary wc-btn-next" id="wc-btn-step-2-next" data-next="3" disabled>
+							<?php esc_html_e( 'Continue to Form', 'wellness-consult' ); ?> &rarr;
 						</button>
 					</div>
 				</section>
@@ -671,7 +664,7 @@ class WC_Booking_Form {
 					</p>
 
 					<!-- Selected Summary Strip for Step 3 (CR-1) -->
-					<div class="wc-fee-summary-strip wc-step3-summary" style="margin-bottom:20px;">
+					<div class="wc-fee-summary-strip wc-step3-summary">
 						<div class="wc-summary-col">
 							<span class="wc-summary-label"><?php esc_html_e( 'Package:', 'wellness-consult' ); ?></span>
 							<strong id="wc-step3-display-type">—</strong>
@@ -681,8 +674,12 @@ class WC_Booking_Form {
 							<strong id="wc-step3-display-mode">—</strong>
 						</div>
 						<div class="wc-summary-col wc-summary-total">
-							<span class="wc-summary-label"><?php esc_html_e( 'Amount to Transfer:', 'wellness-consult' ); ?></span>
+							<span class="wc-summary-label"><?php esc_html_e( 'Fee:', 'wellness-consult' ); ?></span>
 							<strong class="wc-fee-strip-amount" id="wc-step3-display-fee">$0.00 USD</strong>
+						</div>
+						<div class="wc-summary-col">
+							<span class="wc-summary-label"><?php esc_html_e( 'Payment Method:', 'wellness-consult' ); ?></span>
+							<strong id="wc-step3-display-method">—</strong>
 						</div>
 					</div>
 
@@ -698,7 +695,7 @@ class WC_Booking_Form {
 						<div class="wc-field-group">
 							<label for="wc_field_age"><?php esc_html_e( 'Age * (18+ only)', 'wellness-consult' ); ?></label>
 							<input type="number" id="wc_field_age" name="age" min="18" max="120" value="<?php echo esc_attr( $old_data['age'] ?? '' ); ?>" class="wc-input" placeholder="e.g. 28" required />
-							<span class="wc-help-text" id="wc-age-warning" style="display:none;color:#dc2626;font-weight:600;">
+							<span class="wc-help-text" id="wc-age-warning" style="display:none;color:var(--danger);font-weight:600;">
 								<?php esc_html_e( 'Consultations are strictly for adults aged 18 and older.', 'wellness-consult' ); ?>
 							</span>
 						</div>
@@ -728,7 +725,7 @@ class WC_Booking_Form {
 									</option>
 								<?php endforeach; ?>
 							</select>
-							<div class="wc-country-blocked-alert" id="wc-country-blocked-alert" style="display:none;background:#fef2f2;border:1px solid #fecaca;padding:8px 12px;border-radius:4px;margin-top:6px;color:#991b1b;font-size:13px;">
+							<div class="wc-country-blocked-alert" id="wc-country-blocked-alert" style="display:none;background:var(--surface-2);border:1px solid var(--border);padding:8px 12px;border-radius:4px;margin-top:6px;color:var(--danger);font-size:13px;">
 								<?php esc_html_e( 'Notice: Consultations are currently unavailable in this country due to medical licensing compliance.', 'wellness-consult' ); ?>
 							</div>
 						</div>
@@ -821,6 +818,7 @@ class WC_Booking_Form {
 							<p class="wc-upload-subtext">
 								<?php esc_html_e( 'Upload the transaction receipt or screenshot from your banking or wallet app. Accepted formats: JPG, PNG, PDF (Max 5 MB).', 'wellness-consult' ); ?>
 							</p>
+							<p class="wc-help-text"><?php esc_html_e( 'Where do I find my payment screenshot?', 'wellness-consult' ); ?></p>
 
 							<div class="wc-dropzone-box" id="wc-dropzone">
 								<input type="file" id="wc_payment_proof" name="payment_proof" accept="image/jpeg,image/png,application/pdf" class="wc-file-input" />
@@ -842,7 +840,7 @@ class WC_Booking_Form {
 									<div class="wc-preview-thumb-wrap">
 										<img id="wc-preview-img" src="" alt="<?php esc_attr_e( 'Proof preview', 'wellness-consult' ); ?>" style="display:none;" />
 										<div id="wc-preview-pdf" style="display:none;" class="wc-pdf-preview-box">
-											<span class="dashicons dashicons-media-document" style="font-size:32px;width:32px;height:32px;color:#dc2626;"></span>
+											<span class="dashicons dashicons-media-document" style="font-size:32px;width:32px;height:32px;color:var(--danger);"></span>
 											<span id="wc-pdf-name" class="wc-pdf-filename">document.pdf</span>
 										</div>
 									</div>

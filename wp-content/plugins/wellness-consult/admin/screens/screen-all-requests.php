@@ -632,6 +632,16 @@ if ( 'view' === $action && $req_id > 0 ) :
 							<td><strong style="color:#0f3b4c;font-size:15px;">$<?php echo esc_html( number_format( (float) ( $amount_expected ? $amount_expected : $fee_usd ), 2 ) ); ?> USD</strong></td>
 						</tr>
 						<tr>
+							<td style="color:#64748b;"><?php esc_html_e( 'Amount Received (USD):', 'wellness-consult' ); ?></td>
+							<td>
+								<?php if ( '' !== (string) $amount_received ) : ?>
+									<strong>$<?php echo esc_html( number_format( (float) $amount_received, 2 ) ); ?> USD</strong>
+								<?php else : ?>
+									<em style="color:#94a3b8;"><?php esc_html_e( 'Not recorded', 'wellness-consult' ); ?></em>
+								<?php endif; ?>
+							</td>
+						</tr>
+						<tr>
 							<td style="color:#64748b;"><?php esc_html_e( 'Transaction ID / Sender:', 'wellness-consult' ); ?></td>
 							<td>
 								<?php if ( ! empty( $trans_id ) ) : ?>
@@ -677,7 +687,7 @@ if ( 'view' === $action && $req_id > 0 ) :
 									<label for="wc-input-amount-received" style="font-weight:600;display:block;margin-bottom:3px;font-size:13px;">
 										<?php esc_html_e( 'Amount received (USD) *', 'wellness-consult' ); ?>
 									</label>
-									<input type="number" step="0.01" min="0.01" name="amount_received" id="wc-input-amount-received" class="regular-text" style="width:100%;font-size:14px;font-weight:600;" placeholder="e.g. <?php echo esc_attr( number_format( (float) ( $amount_expected ? $amount_expected : $fee_usd ), 2, '.', '' ) ); ?>" required />
+									<input type="number" step="0.01" min="0.01" name="amount_received" id="wc-input-amount-received" class="regular-text" style="width:100%;font-size:14px;font-weight:600;" value="<?php echo esc_attr( $amount_received ? number_format( (float) $amount_received, 2, '.', '' ) : '' ); ?>" placeholder="e.g. <?php echo esc_attr( number_format( (float) ( $amount_expected ? $amount_expected : $fee_usd ), 2, '.', '' ) ); ?>" required />
 									
 									<!-- Client side warning if received < expected -->
 									<div id="wc-underpayment-alert" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:6px 10px;border-radius:4px;margin-top:6px;font-size:12px;font-weight:600;">

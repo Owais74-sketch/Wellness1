@@ -73,7 +73,7 @@ $edit_method = ( $edit_id && isset( $manual_methods[ $edit_id ] ) ) ? $manual_me
 if ( isset( $_POST['wc_manual_save_nonce'] ) && wp_verify_nonce( sanitize_key( $_POST['wc_manual_save_nonce'] ), 'wc_save_manual_action' ) ) {
 	$method_id       = ! empty( $_POST['method_id'] ) ? sanitize_key( $_POST['method_id'] ) : 'mm_' . wp_generate_password( 8, false );
 	$name            = sanitize_text_field( wp_unslash( $_POST['method_name'] ?? '' ) );
-	$method_type     = sanitize_key( wp_unslash( $_POST['method_type'] ?? 'bank' ) );
+	$method_type     = sanitize_key( wp_unslash( $_POST['method_type'] ?? '' ) );
 	$active          = isset( $_POST['active'] ) ? '1' : '0';
 	$is_sample       = isset( $_POST['is_sample'] ) && '1' === $_POST['is_sample'] ? '1' : '0';
 	$countries       = isset( $_POST['allowed_countries'] ) && is_array( $_POST['allowed_countries'] ) ? array_map( 'sanitize_text_field', wp_unslash( $_POST['allowed_countries'] ) ) : array();
@@ -84,10 +84,10 @@ if ( isset( $_POST['wc_manual_save_nonce'] ) && wp_verify_nonce( sanitize_key( $
 	$account_number     = sanitize_text_field( wp_unslash( $_POST['account_number'] ?? '' ) );
 	$swift_bic          = sanitize_text_field( wp_unslash( $_POST['swift_bic'] ?? '' ) );
 	$bank_country       = sanitize_text_field( wp_unslash( $_POST['bank_country'] ?? '' ) );
-	$currency           = sanitize_text_field( wp_unslash( $_POST['currency'] ?? 'USD' ) );
+	$currency           = sanitize_text_field( wp_unslash( $_POST['currency'] ?? '' ) );
 	$notes              = sanitize_textarea_field( wp_unslash( $_POST['notes'] ?? '' ) );
 	$account_identifier = sanitize_text_field( wp_unslash( $_POST['account_identifier'] ?? '' ) );
-	$receiving_currency = sanitize_text_field( wp_unslash( $_POST['receiving_currency'] ?? 'USD' ) );
+	$receiving_currency = sanitize_text_field( wp_unslash( $_POST['receiving_currency'] ?? '' ) );
 	$payment_url        = esc_url_raw( wp_unslash( $_POST['payment_url'] ?? '' ) );
 	$button_label       = sanitize_text_field( wp_unslash( $_POST['button_label'] ?? '' ) );
 	$instructions       = sanitize_textarea_field( wp_unslash( $_POST['instructions'] ?? '' ) );
@@ -96,6 +96,10 @@ if ( isset( $_POST['wc_manual_save_nonce'] ) && wp_verify_nonce( sanitize_key( $
 
 	if ( empty( $name ) ) {
 		$notice = esc_html__( 'Method display name is required.', 'wellness-consult' );
+		$notice_type = 'error';
+		$has_errors = true;
+	} elseif ( ! isset( WC_Options::get_manual_payment_types()[ $method_type ] ) ) {
+		$notice = esc_html__( 'Please select a valid payment method type.', 'wellness-consult' );
 		$notice_type = 'error';
 		$has_errors = true;
 	} elseif ( 'bank' === $method_type && ( empty( $account_holder ) || empty( $account_number ) ) ) {
@@ -582,10 +586,11 @@ function wc_mask_secret( $val ) {
 					<div>
 						<label for="method_type" style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Payment Method Type *', 'wellness-consult' ); ?></label>
 						<?php
-						$current_type = $edit_method['method_type'] ?? 'bank';
+						$current_type = $edit_method['method_type'] ?? '';
 						$payment_types = WC_Options::get_manual_payment_types();
 						?>
 						<select id="method_type" name="method_type" class="regular-text" style="width:100%;" required>
+							<option value="" <?php selected( $current_type, '' ); ?> disabled><?php esc_html_e( 'Select a method type', 'wellness-consult' ); ?></option>
 							<?php foreach ( $payment_types as $pt_key => $pt_info ) : ?>
 								<option value="<?php echo esc_attr( $pt_key ); ?>" <?php selected( $current_type, $pt_key ); ?>>
 									<?php echo esc_html( $pt_info['label'] ); ?>
@@ -625,7 +630,7 @@ function wc_mask_secret( $val ) {
 						</div>
 						<div>
 							<label for="currency" style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Currency Code', 'wellness-consult' ); ?></label>
-							<input type="text" id="currency" name="currency" class="regular-text" style="width:100%;" value="<?php echo esc_attr( $edit_method['currency'] ?? 'USD' ); ?>" placeholder="e.g. USD, EUR, GBP">
+							<input type="text" id="currency" name="currency" class="regular-text" style="width:100%;" value="<?php echo esc_attr( $edit_method['currency'] ?? '' ); ?>" placeholder="e.g. USD, EUR, GBP">
 						</div>
 					</div>
 				</div>
@@ -644,7 +649,7 @@ function wc_mask_secret( $val ) {
 						</div>
 						<div>
 							<label for="receiving_currency" style="font-weight:600;display:block;margin-bottom:4px;"><?php esc_html_e( 'Receiving Currency *', 'wellness-consult' ); ?></label>
-							<input type="text" id="receiving_currency" name="receiving_currency" class="regular-text" style="width:100%;" value="<?php echo esc_attr( $edit_method['receiving_currency'] ?? 'USD' ); ?>" placeholder="e.g. USD">
+							<input type="text" id="receiving_currency" name="receiving_currency" class="regular-text" style="width:100%;" value="<?php echo esc_attr( $edit_method['receiving_currency'] ?? '' ); ?>" placeholder="e.g. USD">
 						</div>
 					</div>
 				</div>
@@ -699,7 +704,7 @@ function wc_mask_secret( $val ) {
 				<!-- Active Switch -->
 				<div style="margin-top:16px;">
 					<label for="method_active" style="font-weight:600;">
-						<input type="checkbox" id="method_active" name="active" value="1" <?php checked( ! isset( $edit_method['active'] ) || '1' === (string) $edit_method['active'] ); ?>>
+						<input type="checkbox" id="method_active" name="active" value="1" <?php checked( isset( $edit_method['active'] ) && '1' === (string) $edit_method['active'] ); ?>>
 						<?php esc_html_e( 'Method Active (Available for bookings)', 'wellness-consult' ); ?>
 					</label>
 				</div>

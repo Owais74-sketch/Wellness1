@@ -201,14 +201,8 @@ class WC_Booking_Handler {
 		$is_online = ( $is_stripe || $is_paypal );
 		$is_manual = isset( $manual_methods[ $method_id ] ) && ! empty( $manual_methods[ $method_id ]['active'] );
 
-		if ( $is_stripe ) {
-			if ( ! class_exists( 'WC_Gateway_Stripe' ) || ! WC_Gateway_Stripe::is_available() ) {
-				$errors[] = esc_html__( 'Credit/Debit Card (Stripe) checkout is currently unavailable. Please choose another payment method.', 'wellness-consult' );
-			}
-		} elseif ( $is_paypal ) {
-			if ( ! class_exists( 'WC_Gateway_PayPal' ) || ! WC_Gateway_PayPal::is_available() ) {
-				$errors[] = esc_html__( 'PayPal checkout is currently unavailable. Please choose another payment method.', 'wellness-consult' );
-			}
+		if ( $is_online ) {
+			$errors[] = esc_html__( 'Online card and PayPal payments are not available in this update. Please choose a manual payment method.', 'wellness-consult' );
 		} elseif ( ! $is_manual ) {
 			$errors[] = esc_html__( 'Please select an active payment method.', 'wellness-consult' );
 		} elseif ( ! empty( $manual_methods[ $method_id ]['allowed_countries'] ) && ! in_array( $country, (array) $manual_methods[ $method_id ]['allowed_countries'], true ) ) {
