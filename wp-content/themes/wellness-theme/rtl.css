@@ -1,0 +1,72 @@
+/*
+Theme Name: Wellness Theme
+Description: RTL styles for Urdu and right-to-left languages (SRS v2.0 FR-6).
+*/
+
+body {
+  direction: rtl;
+  unicode-bidi: embed;
+  text-align: right;
+}
+
+/* Typography & Lists */
+ul, ol {
+  margin-left: 0;
+  margin-right: var(--space-6);
+}
+
+/* Header & Utility Bar */
+.top-utility-bar .utility-actions {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+.quick-exit-btn .esc-hint {
+  margin-left: 0;
+  margin-right: 2px;
+}
+
+/* Navigation Drawer */
+.mobile-nav-panel {
+  right: auto;
+  left: 0;
+  transform: translateX(-100%);
+}
+
+.mobile-nav-drawer.is-open .mobile-nav-panel {
+  transform: translateX(0);
+}
+
+/* Medical Disclaimer Box */
+.medical-disclaimer-box {
+  border-left: 1px solid rgba(226, 232, 240, 0.15);
+  border-right: 4px solid var(--color-accent);
+}
+
+/* Myths vs Facts */
+.myth-side {
+  border-left: none;
+  border-right: 4px solid var(--color-quick-exit);
+}
+
+/* Key Points & Alert Boxes */
+.key-points-box {
+  border-left: none;
+  border-right: 4px solid var(--color-secondary);
+}
+
+.doctor-alert-box {
+  border-left: none;
+  border-right: 4px solid var(--color-accent);
+}
+
+.security-privacy-notice,
+.notice-privacy-strip {
+  border-left: none;
+  border-right: 3px solid var(--color-secondary);
+}
+
+/* Footer Links */
+.footer-links a:hover {
+  transform: translateX(-3px);
+}

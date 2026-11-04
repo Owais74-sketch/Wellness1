@@ -1,0 +1,59 @@
+/**
+ * Wellness Consult Admin Styles
+ *
+ * Integrates cleanly with default WordPress admin color schemes.
+ * Responsive on mobile and tablet devices.
+ *
+ * @package Wellness_Consult
+ * @version 1.0.0
+ */
+
+.wc-admin-wrap {
+	max-width: 1200px;
+	margin-top: 15px;
+}
+
+.wc-admin-wrap .card,
+.wc-admin-wrap .wc-card {
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+.wc-badge-test-mode {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	letter-spacing: 0.05em;
+}
+
+/* Tablet responsiveness */
+@media (max-width: 960px) {
+	.wc-admin-wrap form table.form-table,
+	.wc-admin-wrap form table.form-table tbody,
+	.wc-admin-wrap form table.form-table tr,
+	.wc-admin-wrap form table.form-table th,
+	.wc-admin-wrap form table.form-table td {
+		display: block;
+		width: 100%;
+		padding: 8px 0;
+	}
+
+	.wc-admin-wrap form table.form-table th {
+		font-weight: 700;
+	}
+
+	.wc-card {
+		padding: 15px !important;
+	}
+}
+
+/* Focus styles for accessible admin inputs */
+.wc-admin-wrap input[type="text"]:focus,
+.wc-admin-wrap input[type="password"]:focus,
+.wc-admin-wrap input[type="number"]:focus,
+.wc-admin-wrap textarea:focus,
+.wc-admin-wrap select:focus {
+	border-color: #2a838e;
+	box-shadow: 0 0 0 1px #2a838e;
+	outline: 2px solid transparent;
+}

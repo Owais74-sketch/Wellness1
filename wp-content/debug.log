@@ -1,0 +1,9 @@
+[04-Nov-2026 10:35:01 UTC] PHP Fatal error:  Uncaught Error: Call to undefined function set_current_screen() in D:\laragon\www\wellness\test_wp_debug.php:59
+Stack trace:
+#0 {main}
+  thrown in D:\laragon\www\wellness\test_wp_debug.php on line 59
+[04-Nov-2026 10:35:15 UTC] PHP Fatal error:  Uncaught Error: Class "WP_Screen" not found in D:\laragon\www\wellness\wp-admin\includes\screen.php:243
+Stack trace:
+#0 D:\laragon\www\wellness\test_wp_debug.php(61): set_current_screen('toplevel_page_w...')
+#1 {main}
+  thrown in D:\laragon\www\wellness\wp-admin\includes\screen.php on line 243
