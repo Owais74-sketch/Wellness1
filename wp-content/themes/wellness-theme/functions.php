@@ -32,16 +32,6 @@ function wellness_theme_scripts() {
 		$theme_version
 	);
 
-	// Dedicated RTL Stylesheet (FR-6: Urdu support)
-	if ( is_rtl() ) {
-		wp_enqueue_style(
-			'wellness-rtl',
-			get_template_directory_uri() . '/rtl.css',
-			array( 'wellness-style' ),
-			$theme_version
-		);
-	}
-
 	// Main JavaScript
 	wp_enqueue_script(
 		'wellness-theme-js',

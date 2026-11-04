@@ -42,7 +42,7 @@
 }
 
 .wc-progress-step.is-completed {
-	color: var(--primary);
+	color: var(--link, var(--primary));
 }
 
 .wc-step-circle {
@@ -198,13 +198,13 @@
 
 .wc-fee-strip-label {
 	font-weight: 600;
-	color: var(--primary);
+	color: var(--link, var(--primary));
 }
 
 .wc-fee-strip-amount {
 	font-size: 1.25rem;
 	font-weight: 800;
-	color: var(--primary);
+	color: var(--link, var(--primary));
 }
 
 /* Payment Methods Grid */
@@ -258,7 +258,7 @@
 
 .wc-badge-manual {
 	background: var(--surface-2);
-	color: var(--primary);
+	color: var(--link, var(--primary));
 	font-size: 0.75rem;
 	font-weight: 700;
 	padding: 2px 8px;
@@ -587,7 +587,7 @@
 	width: 68px;
 	height: 68px;
 	background: var(--surface-2);
-	color: var(--primary);
+	color: var(--link, var(--primary));
 	border-radius: 50%;
 	display: inline-flex;
 	align-items: center;
@@ -718,7 +718,7 @@
 }
 
 .wc-unavailable-icon {
-	color: var(--primary);
+	color: var(--link, var(--primary));
 	margin-bottom: 1rem;
 }
 
@@ -857,7 +857,7 @@
 	height: 44px;
 	border-radius: 50%;
 	background: var(--surface-2);
-	color: var(--primary);
+	color: var(--link, var(--primary));
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -900,7 +900,7 @@
 .wc-mode-camera-note {
 	display: block;
 	font-size: 0.75rem;
-	color: var(--primary);
+	color: var(--link, var(--primary));
 	font-style: italic;
 	margin-top: 0.35rem;
 }
@@ -947,7 +947,7 @@
 .wc-summary-change {
 	background: transparent;
 	border: 0;
-	color: var(--primary);
+	color: var(--link, var(--primary));
 	cursor: pointer;
 	font: inherit;
 	font-weight: 700;
@@ -968,7 +968,7 @@
 .wc-no-methods-setup a {
 	display: inline-block;
 	margin-top: 0.5rem;
-	color: var(--primary);
+	color: var(--link, var(--primary));
 	font-weight: 700;
 }
 
@@ -999,14 +999,14 @@
 
 .wc-intl-notice-body strong {
 	display: block;
-	color: var(--primary);
+	color: var(--link, var(--primary));
 	font-size: 0.925rem;
 	margin-bottom: 0.25rem;
 }
 
 .wc-intl-notice-body p {
 	margin: 0;
-	color: var(--primary);
+	color: var(--link, var(--primary));
 	font-size: 0.875rem;
 	line-height: 1.45;
 }
@@ -1084,12 +1084,12 @@
 
 .wc-badge-bank {
 	background: var(--surface-2);
-	color: var(--primary);
+	color: var(--link, var(--primary));
 }
 
 .wc-badge-wise_payoneer {
 	background: var(--surface-2);
-	color: var(--primary);
+	color: var(--link, var(--primary));
 }
 
 .wc-badge-payment_link {
@@ -1328,7 +1328,7 @@
 .wc-booking-container .wc-summary-change {
 	background: transparent;
 	border: 0;
-	color: var(--primary);
+	color: var(--link, var(--primary));
 	padding: 0.25rem;
 	text-decoration: underline;
 	text-underline-offset: 0.15em;

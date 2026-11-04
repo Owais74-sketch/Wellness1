@@ -96,20 +96,16 @@ function wellness_footer_copyright_text() {
 
 
 /**
- * Output Auto / Light / Dark Theme Mode Toggle
+ * Output the Light / Dark Theme Mode Toggle.
  */
 function wellness_render_theme_toggle() {
 	?>
-	<div class="theme-mode-toggle" role="radiogroup" aria-label="<?php esc_attr_e( 'Theme Display Mode', 'wellness-theme' ); ?>">
-		<button type="button" class="theme-mode-btn is-active" data-mode="auto" title="<?php esc_attr_e( 'System (Auto)', 'wellness-theme' ); ?>" aria-label="<?php esc_attr_e( 'System Auto Theme', 'wellness-theme' ); ?>">
-			<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-			<span class="toggle-mode-label"><?php esc_html_e( 'Auto', 'wellness-theme' ); ?></span>
-		</button>
-		<button type="button" class="theme-mode-btn" data-mode="light" title="<?php esc_attr_e( 'Light Mode', 'wellness-theme' ); ?>" aria-label="<?php esc_attr_e( 'Light Theme', 'wellness-theme' ); ?>">
+	<div class="theme-mode-toggle" role="group" aria-label="<?php esc_attr_e( 'Theme display mode', 'wellness-theme' ); ?>">
+		<button type="button" class="theme-mode-btn" data-mode="light" title="<?php esc_attr_e( 'Light Mode', 'wellness-theme' ); ?>" aria-pressed="false">
 			<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
 			<span class="toggle-mode-label"><?php esc_html_e( 'Light', 'wellness-theme' ); ?></span>
 		</button>
-		<button type="button" class="theme-mode-btn" data-mode="dark" title="<?php esc_attr_e( 'Dark Mode', 'wellness-theme' ); ?>" aria-label="<?php esc_attr_e( 'Dark Theme', 'wellness-theme' ); ?>">
+		<button type="button" class="theme-mode-btn" data-mode="dark" title="<?php esc_attr_e( 'Dark Mode', 'wellness-theme' ); ?>" aria-pressed="false">
 			<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
 			<span class="toggle-mode-label"><?php esc_html_e( 'Dark', 'wellness-theme' ); ?></span>
 		</button>

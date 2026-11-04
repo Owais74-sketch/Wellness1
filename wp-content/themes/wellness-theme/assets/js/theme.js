@@ -18,7 +18,7 @@
   };
   const defaultThemeMode = (function () {
     const mode = document.documentElement.getAttribute('data-default-theme');
-    return mode === 'light' || mode === 'auto' || mode === 'dark' ? mode : 'dark';
+    return mode === 'light' ? 'light' : 'dark';
   })();
 
   /**
@@ -186,7 +186,7 @@
   });
 
   /**
-   * 7. AUTO / LIGHT / DARK MODE SWITCHER
+   * 7. LIGHT / DARK MODE SWITCHER
    */
   function syncThemeColor() {
     const meta = document.querySelector('meta[name="theme-color"]');
@@ -198,28 +198,17 @@
   }
 
   function applyThemeMode(mode, rememberChoice) {
-    if (mode !== 'light' && mode !== 'dark' && mode !== 'auto') {
+    if (mode !== 'light' && mode !== 'dark') {
       mode = defaultThemeMode;
     }
 
     if (rememberChoice) {
       try {
-        localStorage.setItem('wellness_theme_mode', mode);
+        localStorage.setItem('wc-theme', mode);
       } catch (e) {}
     }
 
-    if (mode === 'dark') {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    } else if (mode === 'light') {
-      document.documentElement.setAttribute('data-theme', 'light');
-    } else {
-      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        document.documentElement.setAttribute('data-theme', 'dark');
-      } else {
-        document.documentElement.setAttribute('data-theme', 'light');
-      }
-    }
-    document.documentElement.setAttribute('data-theme-mode', mode);
+    document.documentElement.setAttribute('data-theme', mode);
     syncThemeColor();
 
     // Sync button UI states across header and mobile drawer
@@ -239,7 +228,7 @@
     const btn = e.target.closest('.theme-mode-btn');
     if (btn) {
       e.preventDefault();
-      const mode = btn.getAttribute('data-mode') || 'auto';
+      const mode = btn.getAttribute('data-mode') || defaultThemeMode;
       applyThemeMode(mode, true);
     }
   });
@@ -247,34 +236,12 @@
   // Init button states on load
   const savedMode = (function() {
     try {
-      return localStorage.getItem('wellness_theme_mode') || defaultThemeMode;
+      const mode = localStorage.getItem('wc-theme');
+      return mode === 'light' || mode === 'dark' ? mode : defaultThemeMode;
     } catch (e) {
       return defaultThemeMode;
     }
   })();
   applyThemeMode(savedMode, false);
-
-  // OS theme change listener when in auto mode
-  if (window.matchMedia) {
-    const colorScheme = window.matchMedia('(prefers-color-scheme: dark)');
-    const updateAutoTheme = function (e) {
-      const mode = (function() {
-        try {
-          return localStorage.getItem('wellness_theme_mode') || defaultThemeMode;
-        } catch (err) {
-          return defaultThemeMode;
-        }
-      })();
-      if (mode === 'auto') {
-        document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-        syncThemeColor();
-      }
-    };
-    if (colorScheme.addEventListener) {
-      colorScheme.addEventListener('change', updateAutoTheme);
-    } else if (colorScheme.addListener) {
-      colorScheme.addListener(updateAutoTheme);
-    }
-  }
 
 })();

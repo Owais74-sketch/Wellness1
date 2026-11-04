@@ -95,7 +95,6 @@ function wellness_customize_register( $wp_customize ) {
 		'choices'  => array(
 			'dark'  => esc_html__( 'Dark', 'wellness-theme' ),
 			'light' => esc_html__( 'Light', 'wellness-theme' ),
-			'auto'  => esc_html__( 'Auto', 'wellness-theme' ),
 		),
 	) );
 
@@ -341,7 +340,7 @@ function wellness_customizer_css() {
 	$heading_family = ( 'serif' === $heading_font ) ? 'var(--font-serif)' : 'var(--font-sans)';
 
 	echo "<style id='wellness-customizer-css'>\n";
-	echo ":root {\n";
+	echo ":root[data-theme=\"light\"], :root[data-theme=\"dark\"] {\n";
 	if ( $primary_color !== '#0f3b4c' ) {
 		echo "  --heading: " . esc_attr( $primary_color ) . ";\n";
 	}
@@ -353,16 +352,16 @@ function wellness_customizer_css() {
 	}
 	if ( $quick_exit_color !== '#dc2626' ) {
 		echo "  --danger-button: " . esc_attr( $quick_exit_color ) . ";\n";
-		echo "  --color-quick-exit: var(--danger-button);\n";
-		echo "  --color-quick-exit-hover: var(--danger-button);\n";
 	}
 	if ( 'serif' === $heading_font ) {
 		echo "  --font-heading: " . $heading_family . ";\n";
-		echo "  h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); }\n";
 	}
 	echo "}\n";
+	if ( 'serif' === $heading_font ) {
+		echo "h1, h2, h3, h4, h5, h6 { font-family: " . $heading_family . "; }\n";
+	}
 	if ( $quick_exit_color !== '#dc2626' ) {
-		echo "[data-theme=\"dark\"] { --danger-button: " . esc_attr( $quick_exit_color ) . "; }\n";
+		echo ":root[data-theme=\"light\"], :root[data-theme=\"dark\"] { --color-quick-exit: var(--danger-button); --color-quick-exit-hover: var(--danger-button); }\n";
 	}
 	echo "</style>\n";
 }

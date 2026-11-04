@@ -11,7 +11,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 $default_theme_mode = get_theme_mod( 'wellness_default_color_mode', 'dark' );
-if ( ! in_array( $default_theme_mode, array( 'dark', 'light', 'auto' ), true ) ) {
+if ( ! in_array( $default_theme_mode, array( 'dark', 'light' ), true ) ) {
 	$default_theme_mode = 'dark';
 }
 ?><!doctype html>
@@ -23,18 +23,16 @@ if ( ! in_array( $default_theme_mode, array( 'dark', 'light', 'auto' ), true ) )
 	<link rel="profile" href="https://gmpg.org/xfn/11">
 	<script>
 		(function() {
-			var defaultMode = document.documentElement.getAttribute('data-default-theme') || 'dark';
+			var defaultMode = document.documentElement.getAttribute('data-default-theme') === 'light' ? 'light' : 'dark';
 			var mode = defaultMode;
 			try {
-				var savedMode = localStorage.getItem('wellness_theme_mode');
-				if (savedMode === 'light' || savedMode === 'dark' || savedMode === 'auto') {
+				var savedMode = localStorage.getItem('wc-theme');
+				if (savedMode === 'light' || savedMode === 'dark') {
 					mode = savedMode;
 				}
 			} catch (e) {}
 
-			var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-			document.documentElement.setAttribute('data-theme-mode', mode);
-			document.documentElement.setAttribute('data-theme', mode === 'auto' ? (prefersDark ? 'dark' : 'light') : mode);
+			document.documentElement.setAttribute('data-theme', mode);
 		})();
 	</script>
 	<?php wp_head(); ?>
@@ -50,7 +48,7 @@ if ( ! in_array( $default_theme_mode, array( 'dark', 'light', 'auto' ), true ) )
 <div id="page" class="site-wrapper">
 
 	<!-- =====================================================================
-	     Site Header (FR-2: Logo, Navigation, Search, Lang Switcher, Quick Exit)
+	     Site Header (FR-2: Logo, Navigation, Search, Quick Exit)
 	     ===================================================================== -->
 	<header id="masthead" class="site-header" role="banner">
 
@@ -63,15 +61,8 @@ if ( ! in_array( $default_theme_mode, array( 'dark', 'light', 'auto' ), true ) )
 				</div>
 
 				<div class="utility-actions">
-					<!-- Auto / Light / Dark Theme Mode Toggle -->
+					<!-- Light / Dark Theme Mode Toggle -->
 					<?php wellness_render_theme_toggle(); ?>
-
-					<!-- Language Switcher (FR-6) -->
-					<div class="lang-switcher" aria-label="<?php esc_attr_e( 'Language Switcher', 'wellness-theme' ); ?>" role="navigation">
-						<a href="?lang=en" class="lang-btn active" title="<?php esc_attr_e( 'English (Default)', 'wellness-theme' ); ?>">EN</a>
-						<a href="?lang=ur" class="lang-btn" title="<?php esc_attr_e( 'Urdu (اردو)', 'wellness-theme' ); ?>">اردو</a>
-						<a href="?lang=ru" class="lang-btn" title="<?php esc_attr_e( 'Roman Urdu', 'wellness-theme' ); ?>">RU</a>
-					</div>
 
 					<!-- Quick Exit Button (Desktop & Mobile header) -->
 					<?php wellness_render_quick_exit_button(); ?>
@@ -181,15 +172,6 @@ if ( ! in_array( $default_theme_mode, array( 'dark', 'light', 'auto' ), true ) )
 						<?php wellness_render_theme_toggle(); ?>
 					</div>
 
-					<!-- Language Selection in Drawer -->
-					<div class="mobile-lang-row">
-						<span class="text-xs text-muted" style="display:block; margin-bottom: 6px; font-weight:600;"><?php esc_html_e( 'Choose Language:', 'wellness-theme' ); ?></span>
-						<div class="lang-switcher">
-							<a href="?lang=en" class="lang-btn active">English</a>
-							<a href="?lang=ur" class="lang-btn">اردو</a>
-							<a href="?lang=ru" class="lang-btn">Roman Urdu</a>
-						</div>
-					</div>
 				</div>
 			</div>
 		</div>
