@@ -16,6 +16,10 @@
       menuClose: 'Close menu'
     }
   };
+  const defaultThemeMode = (function () {
+    const mode = document.documentElement.getAttribute('data-default-theme');
+    return mode === 'light' || mode === 'auto' || mode === 'dark' ? mode : 'dark';
+  })();
 
   /**
    * 1. QUICK EXIT FUNCTIONALITY (FR-2)
@@ -193,27 +197,29 @@
     }
   }
 
-  function applyThemeMode(mode) {
+  function applyThemeMode(mode, rememberChoice) {
     if (mode !== 'light' && mode !== 'dark' && mode !== 'auto') {
-      mode = 'auto';
+      mode = defaultThemeMode;
     }
 
-    try {
-      localStorage.setItem('wellness_theme_mode', mode);
-    } catch (e) {}
+    if (rememberChoice) {
+      try {
+        localStorage.setItem('wellness_theme_mode', mode);
+      } catch (e) {}
+    }
 
     if (mode === 'dark') {
       document.documentElement.setAttribute('data-theme', 'dark');
     } else if (mode === 'light') {
       document.documentElement.setAttribute('data-theme', 'light');
     } else {
-      document.documentElement.removeAttribute('data-theme');
       if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
         document.documentElement.setAttribute('data-theme', 'dark');
       } else {
         document.documentElement.setAttribute('data-theme', 'light');
       }
     }
+    document.documentElement.setAttribute('data-theme-mode', mode);
     syncThemeColor();
 
     // Sync button UI states across header and mobile drawer
@@ -234,19 +240,19 @@
     if (btn) {
       e.preventDefault();
       const mode = btn.getAttribute('data-mode') || 'auto';
-      applyThemeMode(mode);
+      applyThemeMode(mode, true);
     }
   });
 
   // Init button states on load
   const savedMode = (function() {
     try {
-      return localStorage.getItem('wellness_theme_mode') || 'auto';
+      return localStorage.getItem('wellness_theme_mode') || defaultThemeMode;
     } catch (e) {
-      return 'auto';
+      return defaultThemeMode;
     }
   })();
-  applyThemeMode(savedMode);
+  applyThemeMode(savedMode, false);
 
   // OS theme change listener when in auto mode
   if (window.matchMedia) {
@@ -254,9 +260,9 @@
     const updateAutoTheme = function (e) {
       const mode = (function() {
         try {
-          return localStorage.getItem('wellness_theme_mode') || 'auto';
+          return localStorage.getItem('wellness_theme_mode') || defaultThemeMode;
         } catch (err) {
-          return 'auto';
+          return defaultThemeMode;
         }
       })();
       if (mode === 'auto') {

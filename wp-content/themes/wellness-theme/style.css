@@ -19,17 +19,18 @@ Tags: health, wellness, medical, responsive-layout, accessibility-ready, custom-
    ========================================================================== */
 :root {
   color-scheme: light;
-  --bg: #ffffff;
-  --surface: #f7faf9;
-  --surface-2: #f0f5f4;
-  --border: #7d8d92;
+  --bg: #f4f1eb;
+  --surface: #ffffff;
+  --surface-2: #f8f5ef;
+  --border: #8b857a;
   --heading: #0f3b4c;
   --text: #1f2933;
   --text-muted: #5b6770;
-  --primary: #1f7a85;
+  --primary: #287b85;
   --on-primary: #ffffff;
-  --accent: #8a3d2c;
-  --danger: #b91c1c;
+  --accent: #a64e38;
+  --danger: #c61f1f;
+  --danger-button: #dc2626;
 
   --color-primary: var(--heading);
   --color-primary-hover: var(--heading);
@@ -40,8 +41,8 @@ Tags: health, wellness, medical, responsive-layout, accessibility-ready, custom-
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent);
   --color-accent-light: var(--surface-2);
-  --color-quick-exit: var(--danger);
-  --color-quick-exit-hover: var(--danger);
+  --color-quick-exit: var(--danger-button);
+  --color-quick-exit-hover: var(--danger-button);
   --color-quick-exit-bg: var(--surface-2);
   --color-quick-exit-border: var(--on-primary);
   --color-bg: var(--bg);
@@ -1487,14 +1488,17 @@ ul, ol {
   --bg: #0b1a20;
   --surface: #12262e;
   --surface-2: #1b333c;
-  --border: #68818a;
+  --border: #718a93;
   --heading: #f1f5f6;
   --text: #d5dfe2;
   --text-muted: #9fb1b6;
-  --primary: #5fc0c8;
-  --on-primary: #0b1a20;
-  --accent: #f2a089;
-  --danger: #fca5a5;
+  --primary: #287b85;
+  --on-primary: #ffffff;
+  --accent: #e07a5f;
+  --danger: #f87171;
+  --danger-button: #dc2626;
+  --color-quick-exit: var(--danger-button);
+  --color-quick-exit-hover: var(--danger-button);
 }
 
 /* ==========================================================================

@@ -10,8 +10,12 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+$default_theme_mode = get_theme_mod( 'wellness_default_color_mode', 'dark' );
+if ( ! in_array( $default_theme_mode, array( 'dark', 'light', 'auto' ), true ) ) {
+	$default_theme_mode = 'dark';
+}
 ?><!doctype html>
-<html <?php language_attributes(); ?>>
+<html <?php language_attributes(); ?> data-default-theme="<?php echo esc_attr( $default_theme_mode ); ?>">
 <head>
 	<meta charset="<?php bloginfo( 'charset' ); ?>">
 	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
@@ -19,7 +23,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	<link rel="profile" href="https://gmpg.org/xfn/11">
 	<script>
 		(function() {
-			var mode = 'auto';
+			var defaultMode = document.documentElement.getAttribute('data-default-theme') || 'dark';
+			var mode = defaultMode;
 			try {
 				var savedMode = localStorage.getItem('wellness_theme_mode');
 				if (savedMode === 'light' || savedMode === 'dark' || savedMode === 'auto') {
@@ -28,6 +33,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			} catch (e) {}
 
 			var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+			document.documentElement.setAttribute('data-theme-mode', mode);
 			document.documentElement.setAttribute('data-theme', mode === 'auto' ? (prefersDark ? 'dark' : 'light') : mode);
 		})();
 	</script>

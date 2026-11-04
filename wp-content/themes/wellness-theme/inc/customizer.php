@@ -50,7 +50,7 @@ function wellness_customize_register( $wp_customize ) {
 
 	// Secondary Color
 	$wp_customize->add_setting( 'wellness_secondary_color', array(
-		'default'           => '#1f7a85',
+		'default'           => '#287b85',
 		'sanitize_callback' => 'sanitize_hex_color',
 		'transport'         => 'refresh',
 	) );
@@ -62,7 +62,7 @@ function wellness_customize_register( $wp_customize ) {
 
 	// Accent Color
 	$wp_customize->add_setting( 'wellness_accent_color', array(
-		'default'           => '#8a3d2c',
+		'default'           => '#e07a5f',
 		'sanitize_callback' => 'sanitize_hex_color',
 		'transport'         => 'refresh',
 	) );
@@ -74,7 +74,7 @@ function wellness_customize_register( $wp_customize ) {
 
 	// Quick Exit Urgent Red Color
 	$wp_customize->add_setting( 'wellness_quick_exit_color', array(
-		'default'           => '#b91c1c',
+		'default'           => '#dc2626',
 		'sanitize_callback' => 'sanitize_hex_color',
 		'transport'         => 'refresh',
 	) );
@@ -83,6 +83,21 @@ function wellness_customize_register( $wp_customize ) {
 		'section'  => 'wellness_colors_section',
 		'settings' => 'wellness_quick_exit_color',
 	) ) );
+
+	$wp_customize->add_setting( 'wellness_default_color_mode', array(
+		'default'           => 'dark',
+		'sanitize_callback' => 'wellness_sanitize_select',
+	) );
+	$wp_customize->add_control( 'wellness_default_color_mode', array(
+		'label'    => esc_html__( 'Default colour mode', 'wellness-theme' ),
+		'section'  => 'wellness_colors_section',
+		'type'     => 'select',
+		'choices'  => array(
+			'dark'  => esc_html__( 'Dark', 'wellness-theme' ),
+			'light' => esc_html__( 'Light', 'wellness-theme' ),
+			'auto'  => esc_html__( 'Auto', 'wellness-theme' ),
+		),
+	) );
 
 	// -------------------------------------------------------------------------
 	// SECTION 2: Typography & Fonts
@@ -318,9 +333,9 @@ function wellness_sanitize_select( $input, $setting ) {
  */
 function wellness_customizer_css() {
 	$primary_color    = get_theme_mod( 'wellness_primary_color', '#0f3b4c' );
-	$secondary_color  = get_theme_mod( 'wellness_secondary_color', '#1f7a85' );
-	$accent_color     = get_theme_mod( 'wellness_accent_color', '#8a3d2c' );
-	$quick_exit_color = get_theme_mod( 'wellness_quick_exit_color', '#b91c1c' );
+	$secondary_color  = get_theme_mod( 'wellness_secondary_color', '#287b85' );
+	$accent_color     = get_theme_mod( 'wellness_accent_color', '#e07a5f' );
+	$quick_exit_color = get_theme_mod( 'wellness_quick_exit_color', '#dc2626' );
 	$heading_font     = get_theme_mod( 'wellness_heading_font', 'sans' );
 
 	$heading_family = ( 'serif' === $heading_font ) ? 'var(--font-serif)' : 'var(--font-sans)';
@@ -330,20 +345,25 @@ function wellness_customizer_css() {
 	if ( $primary_color !== '#0f3b4c' ) {
 		echo "  --heading: " . esc_attr( $primary_color ) . ";\n";
 	}
-	if ( $secondary_color !== '#1f7a85' ) {
+	if ( $secondary_color !== '#287b85' ) {
 		echo "  --primary: " . esc_attr( $secondary_color ) . ";\n";
 	}
-	if ( $accent_color !== '#8a3d2c' ) {
+	if ( $accent_color !== '#e07a5f' ) {
 		echo "  --accent: " . esc_attr( $accent_color ) . ";\n";
 	}
-	if ( $quick_exit_color !== '#b91c1c' ) {
-		echo "  --danger: " . esc_attr( $quick_exit_color ) . ";\n";
+	if ( $quick_exit_color !== '#dc2626' ) {
+		echo "  --danger-button: " . esc_attr( $quick_exit_color ) . ";\n";
+		echo "  --color-quick-exit: var(--danger-button);\n";
+		echo "  --color-quick-exit-hover: var(--danger-button);\n";
 	}
 	if ( 'serif' === $heading_font ) {
 		echo "  --font-heading: " . $heading_family . ";\n";
 		echo "  h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); }\n";
 	}
 	echo "}\n";
+	if ( $quick_exit_color !== '#dc2626' ) {
+		echo "[data-theme=\"dark\"] { --danger-button: " . esc_attr( $quick_exit_color ) . "; }\n";
+	}
 	echo "</style>\n";
 }
 add_action( 'wp_head', 'wellness_customizer_css', 100 );
