@@ -18,7 +18,7 @@ get_header();
 <main id="primary" class="site-main site-404" role="main">
 	<div class="container container-narrow text-center">
 
-		<div class="error-404-card" style="background:#fff; border:1px solid var(--color-border); border-radius: var(--radius-lg); padding: 3.5rem 2rem; margin: 2rem auto; box-shadow: var(--shadow-sm);">
+		<div class="error-404-card" style="background:var(--surface); border:1px solid var(--border); border-radius: var(--radius-lg); padding: 3.5rem 2rem; margin: 2rem auto; box-shadow: var(--shadow-sm);">
 			<span class="badge badge-accent" style="font-size: var(--text-sm); margin-bottom: 1rem;"><?php esc_html_e( 'Page Not Found', 'wellness-theme' ); ?></span>
 			<h1 style="font-size: var(--text-4xl); color: var(--color-primary); margin-bottom: 1rem;"><?php esc_html_e( '404 - Page Not Found', 'wellness-theme' ); ?></h1>
 			<p class="text-muted" style="font-size: var(--text-lg); max-width: 580px; margin: 0 auto 2rem;">

@@ -22,9 +22,9 @@ get_header();
 		<div class="container">
 			<div class="hero-content text-center">
 				<?php
-				$hero_badge = get_theme_mod( 'wellness_hero_badge', __( '100% Confidential • No Account Required • Certified Specialists', 'wellness-theme' ) );
+				$hero_badge = get_theme_mod( 'wellness_hero_badge', __( 'Private and confidential • No account required • Worldwide time zone matching', 'wellness-theme' ) );
 				$hero_title = get_theme_mod( 'wellness_hero_headline', __( 'Honest, private answers about intimacy and sexual health.', 'wellness-theme' ) );
-				$hero_sub   = get_theme_mod( 'wellness_hero_subtext', __( 'Compassionate counseling, evidence-based guidance, and paid private consultations with qualified doctors and counselors. Completely confidential, in your own time zone.', 'wellness-theme' ) );
+				$hero_sub   = get_theme_mod( 'wellness_hero_subtext', __( 'Private consultations and clear health education, with appointments shown in your time zone.', 'wellness-theme' ) );
 				$cta1_text  = get_theme_mod( 'wellness_hero_cta1_text', __( 'Book a Private Consultation', 'wellness-theme' ) );
 				$cta1_url   = get_theme_mod( 'wellness_hero_cta1_url', '/book-consultation/' );
 				$cta2_text  = get_theme_mod( 'wellness_hero_cta2_text', __( 'Ask Anonymously (Free)', 'wellness-theme' ) );
@@ -62,15 +62,15 @@ get_header();
 			<div class="trust-items">
 				<div class="trust-item">
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-					<span><?php esc_html_e( 'Qualified & Registered Doctor', 'wellness-theme' ); ?></span>
+					<span><?php esc_html_e( 'Private and confidential', 'wellness-theme' ); ?></span>
 				</div>
 				<div class="trust-item">
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-					<span><?php esc_html_e( '100% Private (Alias Allowed)', 'wellness-theme' ); ?></span>
+					<span><?php esc_html_e( 'Private and confidential • Alias allowed', 'wellness-theme' ); ?></span>
 				</div>
 				<div class="trust-item">
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-					<span><?php esc_html_e( 'Evidence-Based Education', 'wellness-theme' ); ?></span>
+					<span><?php esc_html_e( 'Clear health education', 'wellness-theme' ); ?></span>
 				</div>
 				<div class="trust-item">
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
@@ -150,7 +150,7 @@ get_header();
 		<div class="container">
 			<div class="section-header-flex">
 				<div>
-					<span class="badge badge-primary"><?php esc_html_e( 'Evidence-Based Guidance', 'wellness-theme' ); ?></span>
+					<span class="badge badge-primary"><?php esc_html_e( 'Clear Health Education', 'wellness-theme' ); ?></span>
 					<h2 id="articles-heading"><?php esc_html_e( 'Latest Medical & Wellness Articles', 'wellness-theme' ); ?></h2>
 				</div>
 				<a href="<?php echo esc_url( home_url( '/articles/' ) ); ?>" class="btn btn-outline">
@@ -197,7 +197,7 @@ get_header();
 									</a>
 								</h3>
 								<p class="card-excerpt">
-									<?php esc_html_e( 'Explore medically verified insights and practical steps to regain confidence and strengthen emotional connection.', 'wellness-theme' ); ?>
+									<?php esc_html_e( 'Explore health information and practical steps to support confidence and emotional connection.', 'wellness-theme' ); ?>
 								</p>
 								<div class="card-footer">
 									<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="btn btn-outline btn-sm"><?php esc_html_e( 'Read', 'wellness-theme' ); ?> &rarr;</a>
@@ -336,7 +336,7 @@ get_header();
 						<span class="faq-icon" aria-hidden="true">+</span>
 					</summary>
 					<div class="faq-answer">
-						<p><?php esc_html_e( 'All consultations are conducted exclusively by qualified medical doctors or accredited psychological counselors with verifiable credentials and specialist training in intimacy and wellness counseling.', 'wellness-theme' ); ?></p>
+						<p><?php esc_html_e( 'Consultation availability and scope depend on the countries supported. Check the consultant information before booking.', 'wellness-theme' ); ?></p>
 					</div>
 				</details>
 
@@ -354,11 +354,11 @@ get_header();
 	</section>
 
 	<!-- 9. Bottom Call to Action Banner -->
-	<section class="section-cta-banner py-8" style="background: linear-gradient(135deg, var(--color-primary) 0%, #173846 100%); color: #fff; text-align: center;">
+	<section class="section-cta-banner py-8" style="background: linear-gradient(135deg, var(--heading) 0%, var(--primary) 100%); color: var(--on-primary); text-align: center;">
 		<div class="container container-narrow">
-			<h2 style="color: #fff; margin-bottom: 1rem;"><?php esc_html_e( 'Ready to Speak With a Specialist in Total Confidence?', 'wellness-theme' ); ?></h2>
-			<p style="color: #cbd5e1; font-size: var(--text-lg); margin-bottom: 2rem;">
-				<?php esc_html_e( 'No judgment, no embarrassing waiting rooms. Just compassionate, certified answers in complete privacy.', 'wellness-theme' ); ?>
+			<h2 style="color: var(--on-primary); margin-bottom: 1rem;"><?php esc_html_e( 'Ready to ask a private question?', 'wellness-theme' ); ?></h2>
+			<p style="color: var(--on-primary); font-size: var(--text-lg); margin-bottom: 2rem;">
+				<?php esc_html_e( 'No judgment, no embarrassing waiting rooms. Just thoughtful answers in a private setting.', 'wellness-theme' ); ?>
 			</p>
 			<a href="<?php echo esc_url( home_url( '/book-consultation/' ) ); ?>" class="btn btn-secondary btn-pill btn-lg">
 				<?php esc_html_e( 'Book Your Private Consultation', 'wellness-theme' ); ?>

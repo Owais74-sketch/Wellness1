@@ -62,7 +62,7 @@ get_header();
 				?>
 			</div>
 		<?php else : ?>
-			<div class="empty-state-card text-center" style="background:#fff; border:1px solid var(--color-border); border-radius: var(--radius-lg); padding: 3rem; max-width: 600px; margin: 2rem auto;">
+			<div class="empty-state-card text-center" style="background:var(--surface); border:1px solid var(--border); border-radius: var(--radius-lg); padding: 3rem; max-width: 600px; margin: 2rem auto;">
 				<div style="font-size: 2.5rem; margin-bottom: 1rem;" aria-hidden="true">🔍</div>
 				<h3><?php esc_html_e( 'No Matches Found', 'wellness-theme' ); ?></h3>
 				<p class="text-muted" style="margin-bottom: 1.5rem;">

@@ -23,25 +23,25 @@ get_header();
 			<span class="badge badge-secondary" style="margin-bottom: 0.5rem;"><?php esc_html_e( '100% Free • Anonymous • Safe', 'wellness-theme' ); ?></span>
 			<h1><?php esc_html_e( 'Ask a Question Anonymously', 'wellness-theme' ); ?></h1>
 			<p class="text-muted" style="max-width: 620px; margin: 0 auto;">
-				<?php esc_html_e( 'Have a private question about intimacy, physical symptoms, or emotional connection? Ask our qualified doctor without sharing your identity.', 'wellness-theme' ); ?>
+				<?php esc_html_e( 'Have a private question about intimacy, physical symptoms, or emotional connection? Ask without sharing your identity.', 'wellness-theme' ); ?>
 			</p>
 		</header>
 
 		<!-- Question Submission Card (SRS 4.10 FR-33 & 8.6) -->
-		<div class="ask-card" style="background:#fff; border:1px solid var(--color-border); border-radius:var(--radius-lg); padding: 2.5rem; box-shadow:var(--shadow-sm); margin-bottom: 3.5rem;">
+		<div class="ask-card" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding: 2.5rem; box-shadow:var(--shadow-sm); margin-bottom: 3.5rem;">
 			<form id="anonymous-question-form" method="post" action="" style="display:flex; flex-direction:column; gap: 1.25rem;">
 
 				<!-- Emergency & Moderation Notice (SRS 8.6) -->
 				<div class="notice-privacy-strip" style="background:var(--color-surface-subtle); border-left:3px solid var(--color-accent); padding: 0.85rem 1rem; border-radius:var(--radius-sm); font-size:var(--text-xs); color:var(--color-text-secondary); line-height:1.5;">
 					<strong><?php esc_html_e( 'Privacy & Medical Notice:', 'wellness-theme' ); ?></strong>
-					<?php esc_html_e( 'Questions go to our confidential moderation queue. Verified answers are answered by our consultant and may be published on this educational board with all identifying information completely removed. This service is not for acute medical emergencies.', 'wellness-theme' ); ?>
+					<?php esc_html_e( 'Questions go to our moderation queue and may be published on this educational board with identifying information removed. This service is not for acute medical emergencies.', 'wellness-theme' ); ?>
 				</div>
 
 				<div class="form-group" style="display:flex; flex-direction:column; gap: 0.35rem;">
 					<label for="qa_category" style="font-weight:700; font-size:var(--text-sm); color:var(--color-primary);">
 						<?php esc_html_e( 'Topic Category *', 'wellness-theme' ); ?>
 					</label>
-					<select id="qa_category" name="category" required style="border:1px solid var(--color-border-strong); border-radius:var(--radius-md); padding: 0.75rem 1rem; font-size:var(--text-base); background:#fff;">
+					<select id="qa_category" name="category" required style="border:1px solid var(--border); border-radius:var(--radius-md); padding: 0.75rem 1rem; font-size:var(--text-base); background:var(--surface);">
 						<option value="intimacy"><?php esc_html_e( 'Intimacy & Relationships', 'wellness-theme' ); ?></option>
 						<option value="mens-health"><?php esc_html_e( "Men's Health & Performance", 'wellness-theme' ); ?></option>
 						<option value="womens-health"><?php esc_html_e( "Women's Health & Comfort", 'wellness-theme' ); ?></option>
@@ -78,11 +78,11 @@ get_header();
 				<h2 id="answered-qa-heading" style="font-size: var(--text-2xl); color: var(--color-primary);">
 					<?php esc_html_e( 'Recently Answered Questions', 'wellness-theme' ); ?>
 				</h2>
-				<p class="text-sm text-muted"><?php esc_html_e( 'Community questions answered by our certified consultant.', 'wellness-theme' ); ?></p>
+				<p class="text-sm text-muted"><?php esc_html_e( 'Community questions and responses.', 'wellness-theme' ); ?></p>
 			</div>
 
 			<div class="qa-cards-list" style="display:flex; flex-direction:column; gap: 1.25rem; margin-bottom: 3rem;">
-				<div class="qa-item-card" style="background:#fff; border:1px solid var(--color-border); border-radius:var(--radius-md); padding: 1.5rem;">
+				<div class="qa-item-card" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding: 1.5rem;">
 					<div class="qa-tag-row" style="display:flex; align-items:center; gap: 0.5rem; margin-bottom: 0.5rem;">
 						<span class="badge badge-accent" style="font-size:0.65rem;"><?php esc_html_e( 'SAMPLE PREVIEW', 'wellness-theme' ); ?></span>
 						<span class="badge badge-primary"><?php esc_html_e( 'Intimacy Health', 'wellness-theme' ); ?></span>
@@ -95,7 +95,7 @@ get_header();
 					</div>
 				</div>
 
-				<div class="qa-item-card" style="background:#fff; border:1px solid var(--color-border); border-radius:var(--radius-md); padding: 1.5rem;">
+				<div class="qa-item-card" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding: 1.5rem;">
 					<div class="qa-tag-row" style="display:flex; align-items:center; gap: 0.5rem; margin-bottom: 0.5rem;">
 						<span class="badge badge-accent" style="font-size:0.65rem;"><?php esc_html_e( 'SAMPLE PREVIEW', 'wellness-theme' ); ?></span>
 						<span class="badge badge-secondary"><?php esc_html_e( "Men's Health", 'wellness-theme' ); ?></span>

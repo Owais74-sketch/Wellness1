@@ -23,7 +23,7 @@ get_header();
 			<span class="badge badge-secondary" style="margin-bottom: 0.5rem;"><?php esc_html_e( 'Evidence-Based Truths', 'wellness-theme' ); ?></span>
 			<h1><?php esc_html_e( 'Sexual Wellness: Myths vs Facts', 'wellness-theme' ); ?></h1>
 			<p class="text-muted" style="max-width: 680px; margin: 0 auto; font-size: var(--text-lg);">
-				<?php esc_html_e( 'Misinformation creates unnecessary anxiety, guilt, and marital strain. Here, verified doctors replace pervasive cultural folklore with scientific facts.', 'wellness-theme' ); ?>
+				<?php esc_html_e( 'Misinformation can create unnecessary anxiety, guilt, and strain. Explore clear explanations of common sexual wellness topics.', 'wellness-theme' ); ?>
 			</p>
 		</header>
 
@@ -31,14 +31,14 @@ get_header();
 		<div class="myths-cards-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; margin-bottom: 3.5rem;">
 
 			<!-- Card 1 -->
-			<div class="myth-fact-card" style="background:#fff; border:1px solid var(--color-border); border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-sm); display:flex; flex-direction:column;">
+			<div class="myth-fact-card" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-sm); display:flex; flex-direction:column;">
 				<div class="myth-side" style="background:var(--color-quick-exit-bg); border-left:4px solid var(--color-quick-exit); padding: 1.25rem 1.5rem;">
-					<span class="badge badge-accent" style="background:var(--color-quick-exit); color:#fff; font-size:0.7rem; margin-bottom:0.35rem;"><?php esc_html_e( 'MYTH', 'wellness-theme' ); ?></span>
+					<span class="badge badge-accent" style="background:var(--danger); color:var(--on-primary); font-size:0.7rem; margin-bottom:0.35rem;"><?php esc_html_e( 'MYTH', 'wellness-theme' ); ?></span>
 					<h3 style="font-size:var(--text-base); color:var(--color-text); margin:0;">
 						<?php esc_html_e( '"Intimacy concerns always indicate a loss of love or physical attraction."', 'wellness-theme' ); ?>
 					</h3>
 				</div>
-				<div class="fact-side" style="background:#fff; padding: 1.5rem; flex-grow:1; display:flex; flex-direction:column; justify-content:space-between;">
+				<div class="fact-side" style="background:var(--surface); padding: 1.5rem; flex-grow:1; display:flex; flex-direction:column; justify-content:space-between;">
 					<div>
 						<span class="badge badge-secondary" style="font-size:0.7rem; margin-bottom:0.5rem;"><?php esc_html_e( 'MEDICAL FACT', 'wellness-theme' ); ?></span>
 						<p style="font-size:var(--text-sm); line-height:1.6; color:var(--color-text-secondary); margin-bottom:1rem;">
@@ -52,14 +52,14 @@ get_header();
 			</div>
 
 			<!-- Card 2 -->
-			<div class="myth-fact-card" style="background:#fff; border:1px solid var(--color-border); border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-sm); display:flex; flex-direction:column;">
+			<div class="myth-fact-card" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-sm); display:flex; flex-direction:column;">
 				<div class="myth-side" style="background:var(--color-quick-exit-bg); border-left:4px solid var(--color-quick-exit); padding: 1.25rem 1.5rem;">
-					<span class="badge badge-accent" style="background:var(--color-quick-exit); color:#fff; font-size:0.7rem; margin-bottom:0.35rem;"><?php esc_html_e( 'MYTH', 'wellness-theme' ); ?></span>
+					<span class="badge badge-accent" style="background:var(--danger); color:var(--on-primary); font-size:0.7rem; margin-bottom:0.35rem;"><?php esc_html_e( 'MYTH', 'wellness-theme' ); ?></span>
 					<h3 style="font-size:var(--text-base); color:var(--color-text); margin:0;">
 						<?php esc_html_e( '"Occasional performance issues require immediate herbal or prescription pills."', 'wellness-theme' ); ?>
 					</h3>
 				</div>
-				<div class="fact-side" style="background:#fff; padding: 1.5rem; flex-grow:1; display:flex; flex-direction:column; justify-content:space-between;">
+				<div class="fact-side" style="background:var(--surface); padding: 1.5rem; flex-grow:1; display:flex; flex-direction:column; justify-content:space-between;">
 					<div>
 						<span class="badge badge-secondary" style="font-size:0.7rem; margin-bottom:0.5rem;"><?php esc_html_e( 'MEDICAL FACT', 'wellness-theme' ); ?></span>
 						<p style="font-size:var(--text-sm); line-height:1.6; color:var(--color-text-secondary); margin-bottom:1rem;">
@@ -73,14 +73,14 @@ get_header();
 			</div>
 
 			<!-- Card 3 -->
-			<div class="myth-fact-card" style="background:#fff; border:1px solid var(--color-border); border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-sm); display:flex; flex-direction:column;">
+			<div class="myth-fact-card" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-sm); display:flex; flex-direction:column;">
 				<div class="myth-side" style="background:var(--color-quick-exit-bg); border-left:4px solid var(--color-quick-exit); padding: 1.25rem 1.5rem;">
-					<span class="badge badge-accent" style="background:var(--color-quick-exit); color:#fff; font-size:0.7rem; margin-bottom:0.35rem;"><?php esc_html_e( 'MYTH', 'wellness-theme' ); ?></span>
+					<span class="badge badge-accent" style="background:var(--danger); color:var(--on-primary); font-size:0.7rem; margin-bottom:0.35rem;"><?php esc_html_e( 'MYTH', 'wellness-theme' ); ?></span>
 					<h3 style="font-size:var(--text-base); color:var(--color-text); margin:0;">
 						<?php esc_html_e( '"Discomfort or pain during intimacy is something women just have to tolerate."', 'wellness-theme' ); ?>
 					</h3>
 				</div>
-				<div class="fact-side" style="background:#fff; padding: 1.5rem; flex-grow:1; display:flex; flex-direction:column; justify-content:space-between;">
+				<div class="fact-side" style="background:var(--surface); padding: 1.5rem; flex-grow:1; display:flex; flex-direction:column; justify-content:space-between;">
 					<div>
 						<span class="badge badge-secondary" style="font-size:0.7rem; margin-bottom:0.5rem;"><?php esc_html_e( 'MEDICAL FACT', 'wellness-theme' ); ?></span>
 						<p style="font-size:var(--text-sm); line-height:1.6; color:var(--color-text-secondary); margin-bottom:1rem;">

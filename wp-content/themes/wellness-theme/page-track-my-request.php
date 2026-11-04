@@ -28,7 +28,7 @@ get_header();
 		</header>
 
 		<!-- Tracking Lookup Card (SRS 4.8) -->
-		<div class="track-card" style="background:#fff; border:1px solid var(--color-border); border-radius:var(--radius-lg); padding: 2.5rem; box-shadow:var(--shadow-sm); margin-bottom: 3rem;">
+		<div class="track-card" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding: 2.5rem; box-shadow:var(--shadow-sm); margin-bottom: 3rem;">
 			<form id="track-request-form" method="post" action="" style="display:flex; flex-direction:column; gap: 1.25rem;">
 
 				<!-- Security Protection Notice (FR-4.8: 5 failed attempts locked out for 15 min) -->
@@ -63,7 +63,7 @@ get_header();
 		</div>
 
 		<!-- Status Lifecycle Reference Explainer (SRS Section 5) -->
-		<div class="status-explainer-card" style="background:#fff; border:1px solid var(--color-border); border-radius:var(--radius-lg); padding: 1.5rem; margin-bottom: 2.5rem;">
+		<div class="status-explainer-card" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding: 1.5rem; margin-bottom: 2.5rem;">
 			<h4 style="font-size:var(--text-sm); text-transform:uppercase; color:var(--color-primary); letter-spacing:0.04em; margin-bottom: 1rem;">
 				<?php esc_html_e( 'Understanding Consultation Statuses:', 'wellness-theme' ); ?>
 			</h4>

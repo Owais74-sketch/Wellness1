@@ -21,7 +21,7 @@ function wellness_site_branding() {
 		$site_title = get_bloginfo( 'name' );
 		$site_desc  = get_bloginfo( 'description' );
 		if ( empty( $site_desc ) ) {
-			$site_desc = esc_html__( 'Private & Verified Health Guidance', 'wellness-theme' );
+			$site_desc = esc_html__( 'Private Health Information', 'wellness-theme' );
 		}
 		?>
 		<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="site-branding" rel="home">
@@ -74,7 +74,7 @@ function wellness_get_medical_disclaimer_text() {
  */
 function wellness_footer_about_text() {
 	$default = esc_html__(
-		'Honest, private answers about intimacy, relationships, and sexual wellness. We offer confidential counseling and education with certified doctors and counselors in a safe, non-judgmental space.',
+		'Honest, private information about intimacy, relationships, and sexual wellness in a respectful, non-judgmental space.',
 		'wellness-theme'
 	);
 	return get_theme_mod( 'wellness_footer_about', $default );

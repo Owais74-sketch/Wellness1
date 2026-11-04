@@ -18,7 +18,7 @@ class WC_Booking_Form {
 	 */
 	public static function init() {
 		add_shortcode( 'wc_booking', array( __CLASS__, 'render_shortcode' ) );
-		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
+		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ), 20 );
 	}
 
 	/**
@@ -141,7 +141,7 @@ class WC_Booking_Form {
 			</div>
 			<h2 class="wc-unavailable-title"><?php esc_html_e( 'Booking is not available yet', 'wellness-consult' ); ?></h2>
 			<p class="wc-unavailable-desc">
-				<?php esc_html_e( 'Our private consultation calendar is currently being prepared with our registered medical consultants. Please check back shortly or explore our educational articles and myths vs facts.', 'wellness-consult' ); ?>
+				<?php esc_html_e( 'Our private consultation calendar is currently being prepared. Please check back shortly or explore our educational articles and myths vs facts.', 'wellness-consult' ); ?>
 			</p>
 			<div class="wc-unavailable-action">
 				<a href="<?php echo esc_url( home_url( '/articles/' ) ); ?>" class="button button-primary">
@@ -667,7 +667,7 @@ class WC_Booking_Form {
 						<?php esc_html_e( '3. Confidential Booking Details & Screenshot', 'wellness-consult' ); ?>
 					</h2>
 					<p class="wc-step-desc">
-						<?php esc_html_e( 'Your medical information is held in strict clinical confidentiality. Pseudonyms or aliases are welcome.', 'wellness-consult' ); ?>
+						<?php esc_html_e( 'Your information is handled privately and confidentially. Pseudonyms or aliases are welcome.', 'wellness-consult' ); ?>
 					</p>
 
 					<!-- Selected Summary Strip for Step 3 (CR-1) -->
@@ -983,7 +983,7 @@ class WC_Booking_Form {
 					</li>
 					<li>
 						<strong><?php esc_html_e( 'Appointment Scheduling', 'wellness-consult' ); ?></strong>
-						<p><?php esc_html_e( 'Once verified, a qualified doctor or counselor is assigned, and your session time will be confirmed in your local time zone.', 'wellness-consult' ); ?></p>
+						<p><?php esc_html_e( 'Once payment is verified, a consultant is assigned and your session time is confirmed in your local time zone.', 'wellness-consult' ); ?></p>
 					</li>
 					<li>
 						<strong><?php esc_html_e( 'Consultation Meeting Link', 'wellness-consult' ); ?></strong>

@@ -80,12 +80,12 @@ get_header();
 				</div>
 
 				<!-- When to see a doctor box (SRS 8.4) -->
-				<div class="doctor-alert-box" style="background: var(--color-accent-light); border: 1px solid rgba(224, 122, 95, 0.3); border-left: 4px solid var(--color-accent); border-radius: var(--radius-md); padding: 1.25rem 1.5rem; margin: 2.5rem 0;">
-					<h4 style="color: #9c4128; margin-bottom: 0.5rem; font-size: var(--text-base);">
+				<div class="doctor-alert-box" style="background: var(--surface-2); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: var(--radius-md); padding: 1.25rem 1.5rem; margin: 2.5rem 0;">
+					<h4 style="color: var(--heading); margin-bottom: 0.5rem; font-size: var(--text-base);">
 						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline; vertical-align:middle;" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
 						<?php esc_html_e( 'When to Consult a Qualified Doctor', 'wellness-theme' ); ?>
 					</h4>
-					<p class="text-sm" style="margin:0; color: #7c2d12;">
+					<p class="text-sm" style="margin:0; color: var(--text);">
 						<?php esc_html_e( 'If symptoms persist for over 3 months, cause emotional or relationship distress, or are accompanied by severe pain or sudden changes, an individual private consultation is strongly recommended.', 'wellness-theme' ); ?>
 					</p>
 				</div>
@@ -130,7 +130,7 @@ get_header();
 				<div class="article-cta-box" style="background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-primary-light) 100%); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 2rem; text-align:center; margin-bottom: 3rem;">
 					<h3 style="color: var(--color-primary); margin-bottom: 0.5rem;"><?php esc_html_e( 'Have Questions About What You Just Read?', 'wellness-theme' ); ?></h3>
 					<p class="text-muted" style="max-width: 580px; margin: 0 auto 1.5rem;">
-						<?php esc_html_e( 'Speak directly with our qualified consultant in complete privacy, or ask your question anonymously for free.', 'wellness-theme' ); ?>
+						<?php esc_html_e( 'Request a private consultation, or ask your question anonymously for free.', 'wellness-theme' ); ?>
 					</p>
 					<div style="display:flex; justify-content:center; gap: 1rem; flex-wrap:wrap;">
 						<a href="<?php echo esc_url( home_url( '/book-consultation/' ) ); ?>" class="btn btn-secondary btn-pill">

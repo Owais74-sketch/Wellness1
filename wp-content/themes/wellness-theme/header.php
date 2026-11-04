@@ -15,16 +15,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 <head>
 	<meta charset="<?php bloginfo( 'charset' ); ?>">
 	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-	<meta name="theme-color" content="#0f3b4c">
+	<meta name="theme-color" content="">
 	<link rel="profile" href="https://gmpg.org/xfn/11">
 	<script>
 		(function() {
-			var mode = localStorage.getItem('wellness_theme_mode') || 'auto';
-			if (mode === 'dark' || (mode === 'auto' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-				document.documentElement.setAttribute('data-theme', 'dark');
-			} else if (mode === 'light') {
-				document.documentElement.setAttribute('data-theme', 'light');
-			}
+			var mode = 'auto';
+			try {
+				var savedMode = localStorage.getItem('wellness_theme_mode');
+				if (savedMode === 'light' || savedMode === 'dark' || savedMode === 'auto') {
+					mode = savedMode;
+				}
+			} catch (e) {}
+
+			var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+			document.documentElement.setAttribute('data-theme', mode === 'auto' ? (prefersDark ? 'dark' : 'light') : mode);
 		})();
 	</script>
 	<?php wp_head(); ?>

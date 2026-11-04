@@ -18,43 +18,57 @@ Tags: health, wellness, medical, responsive-layout, accessibility-ready, custom-
    1. CSS Custom Properties / Design Tokens
    ========================================================================== */
 :root {
-  /* Brand Colors */
-  --color-primary: #0f3b4c;        /* Deep Slate Navy (trust, clinical dignity) */
-  --color-primary-hover: #092632;
-  --color-primary-light: #e8f1f5;  /* Soft Ice Slate */
-  --color-secondary: #2a838e;      /* Calming Medical Teal */
-  --color-secondary-hover: #1e646d;
-  --color-secondary-light: #e6f6f7;
-  --color-accent: #e07a5f;         /* Warm Terracotta / Human empathy */
-  --color-accent-hover: #cb654b;
-  --color-accent-light: #fdf1ed;
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #f7faf9;
+  --surface-2: #f0f5f4;
+  --border: #7d8d92;
+  --heading: #0f3b4c;
+  --text: #1f2933;
+  --text-muted: #5b6770;
+  --primary: #1f7a85;
+  --on-primary: #ffffff;
+  --accent: #8a3d2c;
+  --danger: #b91c1c;
 
-  /* Safety & Quick Exit */
-  --color-quick-exit: #dc2626;     /* Urgent Alert Red */
-  --color-quick-exit-hover: #b91c1c;
-  --color-quick-exit-bg: #fef2f2;
-
-  /* Neutrals & Surfaces */
-  --color-bg: #f8fafc;             /* Slate 50 background */
-  --color-surface: #ffffff;        /* Pure white for cards & panels */
-  --color-surface-subtle: #f1f5f9; /* Slate 100 subtle backgrounds */
-  --color-surface-muted: #e2e8f0;  /* Slate 200 */
-  --color-text: #0f172a;           /* Slate 900 for sharp readability */
-  --color-text-secondary: #334155; /* Slate 700 */
-  --color-text-muted: #64748b;     /* Slate 500 */
-  --color-text-light: #94a3b8;     /* Slate 400 */
-  --color-border: #e2e8f0;         /* Slate 200 borders */
-  --color-border-strong: #cbd5e1;  /* Slate 300 borders */
-
-  /* Semantic Feedback */
-  --color-success: #15803d;
-  --color-success-bg: #f0fdf4;
-  --color-warning: #b45309;
-  --color-warning-bg: #fffbeb;
-  --color-danger: #b91c1c;
-  --color-danger-bg: #fef2f2;
-  --color-info: #0369a1;
-  --color-info-bg: #f0f9ff;
+  --color-primary: var(--heading);
+  --color-primary-hover: var(--heading);
+  --color-primary-light: var(--surface-2);
+  --color-secondary: var(--primary);
+  --color-secondary-hover: var(--primary);
+  --color-secondary-light: var(--surface-2);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent);
+  --color-accent-light: var(--surface-2);
+  --color-quick-exit: var(--danger);
+  --color-quick-exit-hover: var(--danger);
+  --color-quick-exit-bg: var(--surface-2);
+  --color-quick-exit-border: var(--on-primary);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-2);
+  --color-surface-muted: var(--surface-2);
+  --color-text: var(--text);
+  --color-text-secondary: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-light: var(--text-muted);
+  --color-border: var(--border);
+  --color-border-strong: var(--border);
+  --color-white: var(--on-primary);
+  --color-black: var(--text);
+  --color-success: var(--primary);
+  --color-success-bg: var(--surface-2);
+  --color-warning: var(--heading);
+  --color-warning-bg: var(--surface-2);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--surface-2);
+  --color-info: var(--primary);
+  --color-info-bg: var(--surface-2);
+  --color-topbar-bg: var(--primary);
+  --color-topbar-text: var(--on-primary);
+  --color-topbar-text-muted: var(--on-primary);
+  --color-topbar-border: var(--primary);
+  --color-topbar-pill-bg: var(--primary);
 
   /* Typography */
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -695,7 +709,7 @@ ul, ol {
 }
 
 .search-form-wrap button[type="submit"] {
-  background-color: var(--color-primary);
+  background-color: var(--primary);
   color: var(--color-white);
   padding: 0.5rem 1.25rem;
   border-radius: var(--radius-full);
@@ -723,12 +737,12 @@ ul, ol {
 }
 
 .btn-primary {
-  background-color: var(--color-primary);
+  background-color: var(--primary);
   color: var(--color-white);
 }
 
 .btn-primary:hover {
-  background-color: var(--color-primary-hover);
+  background-color: var(--primary);
   color: var(--color-white);
   transform: translateY(-1px);
 }
@@ -1457,82 +1471,19 @@ ul, ol {
 }
 
 
-/* ==========================================================================
-   11. Dark Mode Variables (prefers-color-scheme: dark)
-   ========================================================================== */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-bg: #09131a;
-    --color-surface: #0f1f28;
-    --color-surface-subtle: #142834;
-    --color-surface-muted: #1c3544;
-    --color-text: #f1f5f9;
-    --color-text-secondary: #cbd5e1;
-    --color-text-muted: #94a3b8;
-    --color-border: #1e3a4b;
-    --color-border-strong: #2a4f65;
-
-    --color-primary-light: #163242;
-    --color-secondary-light: #133a40;
-    --color-accent-light: #3d231b;
-  }
-
-  body {
-    background-color: var(--color-bg);
-    color: var(--color-text);
-  }
-
-  .site-header {
-    background-color: var(--color-surface);
-    border-bottom-color: var(--color-border);
-  }
-
-  .hero-foundation {
-    background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-bg) 100%);
-    border-bottom-color: var(--color-border);
-  }
-
-  .trust-strip {
-    background-color: var(--color-surface);
-    border-color: var(--color-border);
-  }
-
-  .card,
-  .step-card,
-  .category-card,
-  .consultant-card,
-  .error-404-card,
-  .empty-state-card,
-  .booking-flow-card,
-  .track-card,
-  .ask-card,
-  .qa-item-card,
-  .status-explainer-card,
-  .author-reviewer-card,
-  .faq-item {
-    background-color: var(--color-surface) !important;
-    border-color: var(--color-border) !important;
-    color: var(--color-text);
-  }
-
-  .search-form-wrap,
-  .search-modal {
-    background-color: var(--color-surface);
-    border-color: var(--color-border);
-  }
-
-  .search-form-wrap input[type="search"] {
-    color: var(--color-text);
-  }
-
-  .btn-outline {
-    color: var(--color-text);
-    border-color: var(--color-border-strong);
-  }
-
-  .btn-outline:hover {
-    background-color: var(--color-surface-subtle);
-  }
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0b1a20;
+  --surface: #12262e;
+  --surface-2: #1b333c;
+  --border: #68818a;
+  --heading: #f1f5f6;
+  --text: #d5dfe2;
+  --text-muted: #9fb1b6;
+  --primary: #5fc0c8;
+  --on-primary: #0b1a20;
+  --accent: #f2a089;
+  --danger: #fca5a5;
 }
 
 /* ==========================================================================

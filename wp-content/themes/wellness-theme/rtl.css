@@ -39,7 +39,7 @@ ul, ol {
 
 /* Medical Disclaimer Box */
 .medical-disclaimer-box {
-  border-left: 1px solid rgba(226, 232, 240, 0.15);
+  border-left: 1px solid var(--border);
   border-right: 4px solid var(--color-accent);
 }
 

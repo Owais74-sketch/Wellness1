@@ -23,11 +23,11 @@ get_header();
 	<section class="hero-foundation">
 		<div class="container">
 			<span class="badge badge-secondary" style="margin-bottom: 1rem;">
-				<?php esc_html_e( 'Private • Discreet • Certified Medical Guidance', 'wellness-theme' ); ?>
+				<?php esc_html_e( 'Private • Discreet • Worldwide time zone matching', 'wellness-theme' ); ?>
 			</span>
 			<h1><?php esc_html_e( 'Honest, Private Answers About Intimacy and Sexual Health', 'wellness-theme' ); ?></h1>
 			<p class="lead">
-				<?php esc_html_e( 'Speak with verified doctors and counselors from anywhere in the world. Confidential consultations, evidence-based articles, and free anonymous Q&A in complete privacy.', 'wellness-theme' ); ?>
+				<?php esc_html_e( 'Explore private consultations, health information, and free anonymous Q&A from anywhere in the world.', 'wellness-theme' ); ?>
 			</p>
 
 			<div class="hero-actions">
@@ -62,7 +62,7 @@ get_header();
 						<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
 						<polyline points="22 4 12 14.01 9 11.01"></polyline>
 					</svg>
-					<span><?php esc_html_e( 'Qualified & Registered Doctors', 'wellness-theme' ); ?></span>
+					<span><?php esc_html_e( 'Private and confidential', 'wellness-theme' ); ?></span>
 				</div>
 
 				<div class="trust-item">
@@ -70,7 +70,7 @@ get_header();
 						<rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
 						<path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
 					</svg>
-					<span><?php esc_html_e( '100% Private (No Account Required)', 'wellness-theme' ); ?></span>
+					<span><?php esc_html_e( 'Private and confidential • No account required', 'wellness-theme' ); ?></span>
 				</div>
 
 				<div class="trust-item">
@@ -86,7 +86,7 @@ get_header();
 					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 						<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
 					</svg>
-					<span><?php esc_html_e( 'Evidence-Based Guidance', 'wellness-theme' ); ?></span>
+					<span><?php esc_html_e( 'Clear health education', 'wellness-theme' ); ?></span>
 				</div>
 			</div>
 		</div>
@@ -98,7 +98,7 @@ get_header();
 
 			<div class="section-header" style="margin-bottom: 2rem;">
 				<h2><?php esc_html_e( 'Latest Medical & Wellness Articles', 'wellness-theme' ); ?></h2>
-				<p class="text-muted"><?php esc_html_e( 'Scientifically backed information written and reviewed by qualified healthcare specialists.', 'wellness-theme' ); ?></p>
+				<p class="text-muted"><?php esc_html_e( 'Health information presented in clear, accessible language.', 'wellness-theme' ); ?></p>
 			</div>
 
 			<div class="posts-grid">
@@ -145,7 +145,7 @@ get_header();
 
 		<?php else : ?>
 
-			<div class="empty-state-card" style="background:#fff; border:1px solid var(--color-border); border-radius: var(--radius-lg); padding: 3rem 2rem; text-align:center; max-width: 680px; margin: 2rem auto;">
+			<div class="empty-state-card" style="background:var(--surface); border:1px solid var(--border); border-radius: var(--radius-lg); padding: 3rem 2rem; text-align:center; max-width: 680px; margin: 2rem auto;">
 				<div style="font-size: 2.5rem; margin-bottom: 1rem;" aria-hidden="true">🌱</div>
 				<h3><?php esc_html_e( 'Theme Foundation Ready', 'wellness-theme' ); ?></h3>
 				<p class="text-muted" style="margin-bottom: 1.5rem;">

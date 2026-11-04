@@ -184,7 +184,20 @@
   /**
    * 7. AUTO / LIGHT / DARK MODE SWITCHER
    */
+  function syncThemeColor() {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) return;
+    const background = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    if (background) {
+      meta.setAttribute('content', background);
+    }
+  }
+
   function applyThemeMode(mode) {
+    if (mode !== 'light' && mode !== 'dark' && mode !== 'auto') {
+      mode = 'auto';
+    }
+
     try {
       localStorage.setItem('wellness_theme_mode', mode);
     } catch (e) {}
@@ -201,6 +214,7 @@
         document.documentElement.setAttribute('data-theme', 'light');
       }
     }
+    syncThemeColor();
 
     // Sync button UI states across header and mobile drawer
     document.querySelectorAll('.theme-mode-btn').forEach(function (btn) {
@@ -236,7 +250,8 @@
 
   // OS theme change listener when in auto mode
   if (window.matchMedia) {
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
+    const colorScheme = window.matchMedia('(prefers-color-scheme: dark)');
+    const updateAutoTheme = function (e) {
       const mode = (function() {
         try {
           return localStorage.getItem('wellness_theme_mode') || 'auto';
@@ -246,8 +261,14 @@
       })();
       if (mode === 'auto') {
         document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+        syncThemeColor();
       }
-    });
+    };
+    if (colorScheme.addEventListener) {
+      colorScheme.addEventListener('change', updateAutoTheme);
+    } else if (colorScheme.addListener) {
+      colorScheme.addListener(updateAutoTheme);
+    }
   }
 
 })();

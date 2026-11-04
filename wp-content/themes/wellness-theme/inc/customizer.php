@@ -50,7 +50,7 @@ function wellness_customize_register( $wp_customize ) {
 
 	// Secondary Color
 	$wp_customize->add_setting( 'wellness_secondary_color', array(
-		'default'           => '#2a838e',
+		'default'           => '#1f7a85',
 		'sanitize_callback' => 'sanitize_hex_color',
 		'transport'         => 'refresh',
 	) );
@@ -62,7 +62,7 @@ function wellness_customize_register( $wp_customize ) {
 
 	// Accent Color
 	$wp_customize->add_setting( 'wellness_accent_color', array(
-		'default'           => '#e07a5f',
+		'default'           => '#8a3d2c',
 		'sanitize_callback' => 'sanitize_hex_color',
 		'transport'         => 'refresh',
 	) );
@@ -74,7 +74,7 @@ function wellness_customize_register( $wp_customize ) {
 
 	// Quick Exit Urgent Red Color
 	$wp_customize->add_setting( 'wellness_quick_exit_color', array(
-		'default'           => '#dc2626',
+		'default'           => '#b91c1c',
 		'sanitize_callback' => 'sanitize_hex_color',
 		'transport'         => 'refresh',
 	) );
@@ -135,7 +135,7 @@ function wellness_customize_register( $wp_customize ) {
 
 	// Hero Badge Text
 	$wp_customize->add_setting( 'wellness_hero_badge', array(
-		'default'           => esc_html__( '100% Confidential • No Account Required • Certified Specialists', 'wellness-theme' ),
+		'default'           => esc_html__( 'Private and confidential • No account required • Worldwide time zone matching', 'wellness-theme' ),
 		'sanitize_callback' => 'sanitize_text_field',
 	) );
 	$wp_customize->add_control( 'wellness_hero_badge', array(
@@ -157,7 +157,7 @@ function wellness_customize_register( $wp_customize ) {
 
 	// Hero Subtext
 	$wp_customize->add_setting( 'wellness_hero_subtext', array(
-		'default'           => esc_html__( 'Compassionate counseling, evidence-based guidance, and paid private consultations with qualified doctors and counselors. Completely confidential, in your own time zone.', 'wellness-theme' ),
+		'default'           => esc_html__( 'Private consultations and clear health education, with appointments shown in your time zone.', 'wellness-theme' ),
 		'sanitize_callback' => 'sanitize_textarea_field',
 	) );
 	$wp_customize->add_control( 'wellness_hero_subtext', array(
@@ -239,7 +239,7 @@ function wellness_customize_register( $wp_customize ) {
 
 	// Footer About Paragraph
 	$wp_customize->add_setting( 'wellness_footer_about', array(
-		'default'           => esc_html__( 'Honest, private answers about intimacy, relationships, and sexual wellness. We offer confidential counseling and education with certified doctors and counselors in a safe, non-judgmental space.', 'wellness-theme' ),
+		'default'           => esc_html__( 'Honest, private information about intimacy, relationships, and sexual wellness in a respectful, non-judgmental space.', 'wellness-theme' ),
 		'sanitize_callback' => 'sanitize_textarea_field',
 	) );
 	$wp_customize->add_control( 'wellness_footer_about', array(
@@ -318,9 +318,9 @@ function wellness_sanitize_select( $input, $setting ) {
  */
 function wellness_customizer_css() {
 	$primary_color    = get_theme_mod( 'wellness_primary_color', '#0f3b4c' );
-	$secondary_color  = get_theme_mod( 'wellness_secondary_color', '#2a838e' );
-	$accent_color     = get_theme_mod( 'wellness_accent_color', '#e07a5f' );
-	$quick_exit_color = get_theme_mod( 'wellness_quick_exit_color', '#dc2626' );
+	$secondary_color  = get_theme_mod( 'wellness_secondary_color', '#1f7a85' );
+	$accent_color     = get_theme_mod( 'wellness_accent_color', '#8a3d2c' );
+	$quick_exit_color = get_theme_mod( 'wellness_quick_exit_color', '#b91c1c' );
 	$heading_font     = get_theme_mod( 'wellness_heading_font', 'sans' );
 
 	$heading_family = ( 'serif' === $heading_font ) ? 'var(--font-serif)' : 'var(--font-sans)';
@@ -328,16 +328,16 @@ function wellness_customizer_css() {
 	echo "<style id='wellness-customizer-css'>\n";
 	echo ":root {\n";
 	if ( $primary_color !== '#0f3b4c' ) {
-		echo "  --color-primary: " . esc_attr( $primary_color ) . ";\n";
+		echo "  --heading: " . esc_attr( $primary_color ) . ";\n";
 	}
-	if ( $secondary_color !== '#2a838e' ) {
-		echo "  --color-secondary: " . esc_attr( $secondary_color ) . ";\n";
+	if ( $secondary_color !== '#1f7a85' ) {
+		echo "  --primary: " . esc_attr( $secondary_color ) . ";\n";
 	}
-	if ( $accent_color !== '#e07a5f' ) {
-		echo "  --color-accent: " . esc_attr( $accent_color ) . ";\n";
+	if ( $accent_color !== '#8a3d2c' ) {
+		echo "  --accent: " . esc_attr( $accent_color ) . ";\n";
 	}
-	if ( $quick_exit_color !== '#dc2626' ) {
-		echo "  --color-quick-exit: " . esc_attr( $quick_exit_color ) . ";\n";
+	if ( $quick_exit_color !== '#b91c1c' ) {
+		echo "  --danger: " . esc_attr( $quick_exit_color ) . ";\n";
 	}
 	if ( 'serif' === $heading_font ) {
 		echo "  --font-heading: " . $heading_family . ";\n";

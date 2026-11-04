@@ -21,11 +21,11 @@ get_header();
 		<!-- Intro Header (SRS 8.7: Who gives it, privacy promise) -->
 		<div class="booking-intro text-center" style="max-width: 780px; margin: 0 auto 2.5rem;">
 			<span class="badge badge-secondary" style="margin-bottom: 0.75rem;">
-				<?php esc_html_e( '100% Confidential • Verified Doctors • Global Time Zones', 'wellness-theme' ); ?>
+				<?php esc_html_e( 'Private and confidential • Worldwide time zone matching', 'wellness-theme' ); ?>
 			</span>
 			<h1><?php the_title(); ?></h1>
 			<p class="lead text-muted">
-				<?php esc_html_e( 'Consult with a qualified healthcare doctor or counselor from the comfort of your home. Use any name or alias you prefer. Your privacy is protected with medical-grade confidentiality.', 'wellness-theme' ); ?>
+				<?php esc_html_e( 'Request a private consultation from the comfort of your home. Use any name or alias you prefer. Your information is handled privately and confidentially.', 'wellness-theme' ); ?>
 			</p>
 		</div>
 

@@ -41,7 +41,7 @@ get_header();
 				if ( get_the_archive_description() ) {
 					the_archive_description();
 				} else {
-					esc_html_e( 'Explore evidence-based, medically verified articles and compassionate guidance reviewed by licensed health specialists.', 'wellness-theme' );
+					esc_html_e( 'Explore health information and compassionate guidance in clear, accessible language.', 'wellness-theme' );
 				}
 				?>
 			</div>
@@ -86,7 +86,7 @@ get_header();
 				?>
 			</div>
 		<?php else : ?>
-			<div class="empty-state-card text-center" style="background:#fff; border:1px solid var(--color-border); border-radius: var(--radius-lg); padding: 3rem; max-width: 600px; margin: 2rem auto;">
+			<div class="empty-state-card text-center" style="background:var(--surface); border:1px solid var(--border); border-radius: var(--radius-lg); padding: 3rem; max-width: 600px; margin: 2rem auto;">
 				<h3><?php esc_html_e( 'No Articles Found', 'wellness-theme' ); ?></h3>
 				<p class="text-muted"><?php esc_html_e( 'There are currently no articles in this category. Check back soon as our team regularly publishes new educational content.', 'wellness-theme' ); ?></p>
 				<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="btn btn-secondary btn-pill" style="margin-top: 1rem;">
