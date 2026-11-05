@@ -307,7 +307,7 @@ $show_consultant_on_cards = ! $consultant_id;
 		echo esc_html( sprintf(
 			/* translators: 1: time zone, 2: number of appointments */
 			_n( 'Times shown in %1$s. %2$d appointment in this range.', 'Times shown in %1$s. %2$d appointments in this range.', count( $appointments ), 'wellness-consult' ),
-			$tz->getName(),
+			   			preg_match( '/^[+-]/', $tz->getName() ) ? 'UTC' . $tz->getName() : $tz->getName(),
 			count( $appointments )
 		) );
 		?>
