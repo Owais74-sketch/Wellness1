@@ -4,3 +4,4 @@ wp-content/debug.log
 wp-content/cache/
 .env
 node_modules/
+*.zip

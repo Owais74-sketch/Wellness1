@@ -1,0 +1,212 @@
+/**
+ * Wellness Consult - Track My Request page.
+ * Uses the theme's design tokens when present, with safe fallbacks.
+ */
+.wc-track-wrap {
+	--wc-t-surface: var(--surface, #ffffff);
+	--wc-t-border: var(--border, #dbe3e8);
+	--wc-t-text: var(--text, #1f2f3a);
+	--wc-t-muted: var(--text-muted, #5b6b76);
+	--wc-t-accent: #2a838e;
+	--wc-t-accent-dark: #1f6670;
+	max-width: 720px;
+	margin: 0 auto 3rem;
+	color: var(--wc-t-text);
+}
+
+.wc-track-card {
+	background: var(--wc-t-surface);
+	border: 1px solid var(--wc-t-border);
+	border-radius: 12px;
+	padding: 2rem;
+	box-sizing: border-box;
+}
+
+.wc-track-header {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 0.75rem 1rem;
+	margin-bottom: 1.25rem;
+}
+
+.wc-track-title {
+	margin: 0 0 0.35rem;
+	font-size: 1.5rem;
+	line-height: 1.25;
+}
+
+.wc-track-intro,
+.wc-track-privacy {
+	margin: 0 0 1.25rem;
+	color: var(--wc-t-muted);
+}
+
+.wc-track-privacy {
+	margin: 1rem 0 0;
+	font-size: 0.875rem;
+}
+
+.wc-track-ref {
+	margin: 0;
+	color: var(--wc-t-muted);
+}
+
+.wc-track-ref strong {
+	color: var(--wc-t-text);
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* Status pill */
+.wc-track-pill {
+	display: inline-block;
+	padding: 0.3rem 0.8rem;
+	border-radius: 999px;
+	font-size: 0.8125rem;
+	font-weight: 700;
+	background: #e6f6f7;
+	color: var(--wc-t-accent-dark);
+	white-space: nowrap;
+}
+.wc-track-pill.is-rejected,
+.wc-track-pill.is-cancelled,
+.wc-track-pill.is-expired,
+.wc-track-pill.is-no_show { background: #fdecec; color: #9b1c1c; }
+.wc-track-pill.is-scheduled,
+.wc-track-pill.is-completed,
+.wc-track-pill.is-paid_awaiting_scheduling { background: #e7f6ec; color: #1d6b3a; }
+.wc-track-pill.is-refunded { background: #eef0f3; color: #3c4650; }
+
+/* Notices */
+.wc-track-notice {
+	margin: 0 0 1.25rem;
+	padding: 0.75rem 1rem;
+	border-radius: 8px;
+	border-left: 4px solid var(--wc-t-accent);
+	background: #e6f6f7;
+}
+.wc-track-notice.is-error { border-left-color: #c0392b; background: #fdecec; }
+.wc-track-notice.is-success { border-left-color: #2e8b57; background: #e7f6ec; }
+
+/* Progress */
+.wc-track-steps {
+	display: flex;
+	list-style: none;
+	margin: 0 0 1.5rem;
+	padding: 0;
+	gap: 0.5rem;
+}
+.wc-track-steps li {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 0.4rem;
+	font-size: 0.8125rem;
+	text-align: center;
+	color: var(--wc-t-muted);
+}
+.wc-track-step-dot {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2rem;
+	height: 2rem;
+	border-radius: 50%;
+	border: 2px solid var(--wc-t-border);
+	font-weight: 700;
+	background: var(--wc-t-surface);
+}
+.wc-track-steps li.is-current { color: var(--wc-t-text); font-weight: 700; }
+.wc-track-steps li.is-current .wc-track-step-dot { border-color: var(--wc-t-accent); color: var(--wc-t-accent-dark); }
+.wc-track-steps li.is-done .wc-track-step-dot { background: var(--wc-t-accent); border-color: var(--wc-t-accent); color: #fff; }
+
+.wc-track-status-msg {
+	margin: 0 0 1.25rem;
+	font-size: 1.0625rem;
+	line-height: 1.55;
+}
+
+/* Boxes */
+.wc-track-box {
+	margin: 0 0 1.25rem;
+	padding: 1rem 1.25rem;
+	border: 1px solid var(--wc-t-border);
+	border-radius: 10px;
+	background: rgba(42, 131, 142, 0.05);
+}
+.wc-track-box h3 { margin: 0 0 0.5rem; font-size: 1.0625rem; }
+.wc-track-box p { margin: 0.25rem 0 0; }
+.wc-track-box.is-warning { background: #fff8ec; border-color: #f0d9a8; }
+.wc-track-box.is-appointment { border-color: var(--wc-t-accent); }
+
+/* Detail list */
+.wc-track-details {
+	display: grid;
+	grid-template-columns: minmax(120px, 35%) 1fr;
+	gap: 0.55rem 1rem;
+	margin: 0 0 1.25rem;
+}
+.wc-track-details dt { color: var(--wc-t-muted); }
+.wc-track-details dd { margin: 0; word-break: break-word; }
+.wc-track-box .wc-track-details { margin-bottom: 0; }
+
+/* Forms */
+.wc-track-form label {
+	display: block;
+	margin: 0.9rem 0 0.35rem;
+	font-weight: 600;
+}
+.wc-track-form input[type="text"],
+.wc-track-form input[type="email"],
+.wc-track-form input[type="file"] {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+	padding: 0.65rem 0.8rem;
+	border: 1px solid var(--wc-t-border);
+	border-radius: 8px;
+	background: var(--wc-t-surface);
+	color: var(--wc-t-text);
+	font: inherit;
+}
+.wc-track-form input:focus-visible,
+.wc-track-btn:focus-visible,
+.wc-track-link:focus-visible {
+	outline: 3px solid rgba(42, 131, 142, 0.45);
+	outline-offset: 2px;
+}
+.wc-track-upload { margin-bottom: 1.5rem; }
+.wc-track-upload h3 { margin: 0; font-size: 1.0625rem; }
+
+.wc-track-btn {
+	margin-top: 1.25rem;
+	padding: 0.7rem 1.4rem;
+	border: 0;
+	border-radius: 8px;
+	background: var(--wc-t-accent);
+	color: #fff;
+	font: inherit;
+	font-weight: 700;
+	cursor: pointer;
+}
+.wc-track-btn:hover { background: var(--wc-t-accent-dark); }
+
+.wc-track-logout { margin: 0.5rem 0 0; }
+.wc-track-link {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: var(--wc-t-accent-dark);
+	font: inherit;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+@media (max-width: 520px) {
+	.wc-track-card { padding: 1.25rem; }
+	.wc-track-details { grid-template-columns: 1fr; gap: 0.15rem 0; }
+	.wc-track-details dd { margin-bottom: 0.6rem; }
+	.wc-track-steps { gap: 0.25rem; }
+}
