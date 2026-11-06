@@ -184,7 +184,7 @@ get_header();
 									<span><?php esc_html_e( '5 min read', 'wellness-theme' ); ?></span>
 								</div>
 								<h3 class="card-title">
-									<a href="<?php echo esc_url( home_url( '/' ) ); ?>">
+									<a href="<?php echo esc_url( home_url( '/articles/' ) ); ?>">
 										<?php
 										if ( 1 === $i ) {
 											esc_html_e( 'Understanding Performance Anxiety: Causes & Psychological Tools', 'wellness-theme' );
@@ -200,7 +200,7 @@ get_header();
 									<?php esc_html_e( 'Explore health information and practical steps to support confidence and emotional connection.', 'wellness-theme' ); ?>
 								</p>
 								<div class="card-footer">
-									<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="btn btn-outline btn-sm"><?php esc_html_e( 'Read', 'wellness-theme' ); ?> &rarr;</a>
+									<a href="<?php echo esc_url( home_url( '/articles/' ) ); ?>" class="btn btn-outline btn-sm"><?php esc_html_e( 'Read', 'wellness-theme' ); ?> &rarr;</a>
 								</div>
 							</div>
 						</article>

@@ -1,3 +1,4 @@
+
 <?php
 /**
  * The template for displaying the footer
@@ -14,15 +15,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 ?>
 	</div><!-- #content -->
 
-	<!-- =====================================================================
-	     Site Footer (FR-4: Quick Links, Policies, Mandatory Disclaimer)
-	     ===================================================================== -->
+	<!-- Site Footer -->
 	<footer id="colophon" class="site-footer" role="contentinfo">
 		<div class="footer-top">
 			<div class="container">
 				<div class="footer-grid">
 
-					<!-- Col 1: About & Privacy Promise (Dynamic Widget Area with Fallback) -->
+					<!-- Col 1: About & Privacy Promise -->
 					<div class="footer-col">
 						<?php if ( is_active_sidebar( 'footer-1' ) ) : ?>
 							<?php dynamic_sidebar( 'footer-1' ); ?>
@@ -35,7 +34,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<?php endif; ?>
 					</div>
 
-					<!-- Col 2: Explore Navigation (Widget Area with Fallback) -->
+					<!-- Col 2: Explore Navigation -->
 					<div class="footer-col">
 						<?php if ( is_active_sidebar( 'footer-2' ) ) : ?>
 							<?php dynamic_sidebar( 'footer-2' ); ?>
@@ -65,7 +64,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<?php endif; ?>
 					</div>
 
-					<!-- Col 3: Categories & Guidance (Widget Area with Fallback) -->
+					<!-- Col 3: Categories & Guidance -->
 					<div class="footer-col">
 						<?php if ( is_active_sidebar( 'footer-3' ) ) : ?>
 							<?php dynamic_sidebar( 'footer-3' ); ?>
@@ -81,7 +80,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<?php endif; ?>
 					</div>
 
-					<!-- Col 4: Legal & Policies (Widget Area with Fallback) -->
+					<!-- Col 4: Legal & Policies -->
 					<div class="footer-col">
 						<?php if ( is_active_sidebar( 'footer-4' ) ) : ?>
 							<?php dynamic_sidebar( 'footer-4' ); ?>
@@ -114,7 +113,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			</div>
 		</div>
 
-		<!-- Mandatory Medical Disclaimer Box (FR-4 & Section 10) -->
+		<!-- Mandatory Medical Disclaimer -->
 		<div class="footer-disclaimer-wrap">
 			<div class="container">
 				<div class="medical-disclaimer-box" role="note" aria-label="<?php esc_attr_e( 'Medical Disclaimer', 'wellness-theme' ); ?>">
@@ -132,7 +131,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 					<div class="emergency-alert-strip">
 						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-							<polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 2"></polygon>
+							<polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86"></polygon>
 							<line x1="12" y1="8" x2="12" y2="12"></line>
 							<line x1="12" y1="16" x2="12.01" y2="16"></line>
 						</svg>
@@ -142,7 +141,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			</div>
 		</div>
 
-		<!-- Footer Bottom Bar (No fake SSL badges) -->
+		<!-- Footer Bottom Bar -->
 		<div class="footer-bottom">
 			<div class="container">
 				<div class="copyright">

@@ -44,6 +44,7 @@ require_once WC_PLUGIN_DIR . 'includes/class-wc-atomic-reference.php';
 require_once WC_PLUGIN_DIR . 'includes/class-wc-booking-form.php';
 require_once WC_PLUGIN_DIR . 'includes/class-wc-booking-handler.php';
 require_once WC_PLUGIN_DIR . 'includes/class-wc-track-request.php';
+require_once WC_PLUGIN_DIR . 'includes/class-wc-questions.php';
 require_once WC_PLUGIN_DIR . 'includes/gateways/interface-wc-gateway.php';
 require_once WC_PLUGIN_DIR . 'includes/gateways/class-wc-gateway-registry.php';
 require_once WC_PLUGIN_DIR . 'includes/gateways/class-wc-gateway-stripe.php';
@@ -87,6 +88,7 @@ add_action( 'init', array( 'WC_Security_Headers', 'init' ) );
 add_action( 'init', array( 'WC_Booking_Form', 'init' ) );
 add_action( 'init', array( 'WC_Booking_Handler', 'init' ) );
 add_action( 'init', array( 'WC_Track_Request', 'init' ) );
+add_action( 'init', array( 'WC_Questions', 'init' ) );
 add_action( 'init', array( 'WC_Proof_Viewer', 'init' ) );
 add_action( 'init', array( 'WC_Cron', 'init' ) );
 

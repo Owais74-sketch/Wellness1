@@ -31,7 +31,7 @@ get_header();
 			</p>
 
 			<div class="hero-actions">
-				<a href="<?php echo esc_url( home_url( '/#book' ) ); ?>" class="btn btn-secondary btn-pill">
+				<a href="<?php echo esc_url( home_url( '/book-consultation/' ) ); ?>" class="btn btn-secondary btn-pill">
 					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 						<rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
 						<line x1="16" y1="2" x2="16" y2="6"></line>
@@ -41,7 +41,7 @@ get_header();
 					<?php esc_html_e( 'Book a Private Consultation', 'wellness-theme' ); ?>
 				</a>
 
-				<a href="<?php echo esc_url( home_url( '/#ask-question' ) ); ?>" class="btn btn-outline btn-pill">
+				<a href="<?php echo esc_url( home_url( '/ask-a-question/' ) ); ?>" class="btn btn-outline btn-pill">
 					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 						<circle cx="12" cy="12" r="10"></circle>
 						<path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
