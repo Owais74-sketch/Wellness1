@@ -137,6 +137,10 @@ class WC_Questions {
 	 * @return string
 	 */
 	public static function render_form() {
+		if ( ! get_option( 'wc_questions_enabled', false ) ) {
+			return '<div class="wc-unavailable-notice" style="background:var(--surface,#fff); border:1px solid var(--border,#ddd); padding:2rem; border-radius:8px; text-align:center; max-width:640px; margin:2rem auto;"><p style="margin:0; font-size:1.1rem; color:var(--text,#333); font-weight:500;">' . esc_html__( 'Anonymous questions are currently closed.', 'wellness-consult' ) . '</p></div>';
+		}
+
 		$errors = array();
 		$values = array( 'category' => 'intimacy', 'question' => '', 'email' => '' );
 		$done   = false;
@@ -234,6 +238,10 @@ class WC_Questions {
 	 * @return string
 	 */
 	public static function render_answered( $atts = array() ) {
+		if ( ! get_option( 'wc_questions_enabled', false ) ) {
+			return '';
+		}
+
 		$atts  = shortcode_atts( array( 'limit' => 10 ), $atts, 'wc_answered_questions' );
 		$limit = max( 1, min( 50, absint( $atts['limit'] ) ) );
 
@@ -334,6 +342,10 @@ class WC_Questions {
 	 * Handle the public form post.
 	 */
 	public static function handle_submit() {
+		if ( ! get_option( 'wc_questions_enabled', false ) ) {
+			wp_die( esc_html__( 'Anonymous questions are currently closed.', 'wellness-consult' ), 'Forbidden', array( 'response' => 403 ) );
+		}
+
 		if ( ! isset( $_POST['wcq_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['wcq_nonce'] ) ), 'wcq_submit' ) ) {
 			wp_die( esc_html__( 'Your session expired. Please go back, reload the page and try again.', 'wellness-consult' ), '', array( 'response' => 403 ) );
 		}

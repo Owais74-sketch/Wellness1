@@ -23,32 +23,51 @@ get_header();
 	<section class="hero-foundation">
 		<div class="container">
 			<span class="badge badge-secondary" style="margin-bottom: 1rem;">
-				<?php esc_html_e( 'Private • Discreet • Worldwide time zone matching', 'wellness-theme' ); ?>
+				<?php esc_html_e( 'Practical • Evidence-informed • Everyday Wellness', 'wellness-theme' ); ?>
 			</span>
-			<h1><?php esc_html_e( 'Honest, Private Answers About Intimacy and Sexual Health', 'wellness-theme' ); ?></h1>
+			<h1><?php esc_html_e( 'Everyday Wellness, Clearly Explained', 'wellness-theme' ); ?></h1>
+			<?php
+			$consult_on   = function_exists( 'wellness_consultations_enabled' ) ? wellness_consultations_enabled() : false;
+			$questions_on = function_exists( 'wellness_questions_enabled' ) ? wellness_questions_enabled() : false;
+			?>
 			<p class="lead">
-				<?php esc_html_e( 'Explore private consultations, health information, and free anonymous Q&A from anywhere in the world.', 'wellness-theme' ); ?>
+				<?php
+				if ( $consult_on ) {
+					esc_html_e( 'Explore private consultations, health information, and free anonymous Q&A from anywhere in the world.', 'wellness-theme' );
+				} else {
+					esc_html_e( 'Explore medically reviewed health information, educational guides, and evidence-based wellness resources.', 'wellness-theme' );
+				}
+				?>
 			</p>
 
 			<div class="hero-actions">
-				<a href="<?php echo esc_url( home_url( '/book-consultation/' ) ); ?>" class="btn btn-secondary btn-pill">
-					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-						<rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-						<line x1="16" y1="2" x2="16" y2="6"></line>
-						<line x1="8" y1="2" x2="8" y2="6"></line>
-						<line x1="3" y1="10" x2="21" y2="10"></line>
-					</svg>
-					<?php esc_html_e( 'Book a Private Consultation', 'wellness-theme' ); ?>
-				</a>
+				<?php if ( $consult_on ) : ?>
+					<a href="<?php echo esc_url( home_url( '/book-consultation/' ) ); ?>" class="btn btn-secondary btn-pill">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+							<line x1="16" y1="2" x2="16" y2="6"></line>
+							<line x1="8" y1="2" x2="8" y2="6"></line>
+							<line x1="3" y1="10" x2="21" y2="10"></line>
+						</svg>
+						<?php esc_html_e( 'Book a Private Consultation', 'wellness-theme' ); ?>
+					</a>
+				<?php else : ?>
+					<a href="<?php echo esc_url( home_url( '/articles/' ) ); ?>" class="btn btn-secondary btn-pill">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>
+						<?php esc_html_e( 'Read our articles', 'wellness-theme' ); ?>
+					</a>
+				<?php endif; ?>
 
-				<a href="<?php echo esc_url( home_url( '/ask-a-question/' ) ); ?>" class="btn btn-outline btn-pill">
-					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-						<circle cx="12" cy="12" r="10"></circle>
-						<path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
-						<line x1="12" y1="17" x2="12.01" y2="17"></line>
-					</svg>
-					<?php esc_html_e( 'Ask Anonymously (Free)', 'wellness-theme' ); ?>
-				</a>
+				<?php if ( $questions_on ) : ?>
+					<a href="<?php echo esc_url( home_url( '/ask-a-question/' ) ); ?>" class="btn btn-outline btn-pill">
+						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+							<circle cx="12" cy="12" r="10"></circle>
+							<path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+							<line x1="12" y1="17" x2="12.01" y2="17"></line>
+						</svg>
+						<?php esc_html_e( 'Ask Anonymously (Free)', 'wellness-theme' ); ?>
+					</a>
+				<?php endif; ?>
 			</div>
 		</div>
 	</section>
@@ -99,6 +118,26 @@ get_header();
 			<div class="section-header" style="margin-bottom: 2rem;">
 				<h2><?php esc_html_e( 'Latest Medical & Wellness Articles', 'wellness-theme' ); ?></h2>
 				<p class="text-muted"><?php esc_html_e( 'Health information presented in clear, accessible language.', 'wellness-theme' ); ?></p>
+				
+				<!-- Category Filter Chips (SRS 8.2) -->
+				<div class="category-chips-row" style="display:flex; justify-content:center; gap: 0.5rem; flex-wrap:wrap; margin-top: 1.5rem;">
+					<a href="<?php echo esc_url( home_url( '/articles/' ) ); ?>" class="btn btn-primary btn-sm btn-pill">
+						<?php esc_html_e( 'All Articles', 'wellness-theme' ); ?>
+					</a>
+					<?php
+					$categories = get_categories( array( 'hide_empty' => false ) );
+					foreach ( $categories as $cat ) {
+						if ( 'uncategorized' === $cat->slug ) {
+							continue;
+						}
+						printf(
+							'<a href="%s" class="btn btn-outline btn-sm btn-pill">%s</a>',
+							esc_url( get_category_link( $cat->term_id ) ),
+							esc_html( wp_specialchars_decode( $cat->name ) )
+						);
+					}
+					?>
+				</div>
 			</div>
 
 			<div class="posts-grid">

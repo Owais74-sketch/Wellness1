@@ -3,7 +3,7 @@
  *
  * Implements accessible step navigation, timezone auto-detection,
  * drag-and-drop screenshot validation, sessionStorage persistence,
- * and submit button double-click prevention.
+ * dynamic mode/fee calculations, and submit button double-click prevention.
  *
  * @package Wellness_Consult
  * @version 1.0.0
@@ -13,24 +13,15 @@
 	'use strict';
 
 	$(document).ready(function() {
-		var $wrapper    = $('#wc-booking-wrapper');
+		var $wrapper = $('#wc-booking-wrapper');
 		if (!$wrapper.length) {
 			return;
 		}
 
 		var currentStep = 1;
-		var $paymentSection = $('#wc-step-2');
-		var $detailsSection = $('#wc-step-3');
-		$detailsSection.attr('id', 'wc-step-2').insertAfter($('#wc-step-1'));
-		$paymentSection.attr('id', 'wc-step-3').insertAfter($detailsSection);
-		$detailsSection.attr('aria-labelledby', 'wc-step-2-title').find('h2').attr('id', 'wc-step-2-title');
-		$paymentSection.attr('aria-labelledby', 'wc-step-3-title').find('h2').attr('id', 'wc-step-3-title');
-		$('#wc-trans-id-container, #wc-screenshot-section').insertBefore($paymentSection.find('.wc-step-buttons'));
-		$('.wc-step3-summary').insertAfter($paymentSection.find('.wc-step2-summary'));
-		var initialStep = $('input[name="wc_draft_nonce"]').length ? 3 : 1;
 
 		// ==========================================
-		// 1. SessionStorage Form Progress (Rule 3)
+		// 1. SessionStorage Form Progress
 		// ==========================================
 		var STORAGE_KEY = 'wc_booking_form_state';
 
@@ -88,7 +79,7 @@
 		});
 
 		// ==========================================
-		// 2. Timezone Auto-Detection (Rule 1)
+		// 2. Timezone Auto-Detection
 		// ==========================================
 		try {
 			if (window.Intl && typeof window.Intl.DateTimeFormat === 'function') {
@@ -218,7 +209,7 @@
 				$('#wc-display-selected-duration').text(parseInt($type.data('duration'), 10) + ' minutes');
 				$('#wc-display-selected-fee').text(formattedFee);
 
-				// Update dynamic exact fee and copy amount buttons on all payment cards (CR-2)
+				// Update dynamic exact fee and copy amount buttons on all payment cards
 				$('.wc-dynamic-amount').text(formattedFee);
 				$('.wc-copy-amount-btn').attr('data-copy', formattedFee).data('copy', formattedFee);
 
@@ -262,14 +253,7 @@
 		// ==========================================
 		function updatePaymentMethodUI() {
 			var $selected = $('input[name="payment_method_id"]:checked');
-			var $paymentSubmit = $('#wc-btn-step-2-next');
-			if (!initialDraftReady()) {
-				$paymentSubmit.prop('disabled', true).addClass('button-disabled');
-				updateSelectedPaymentDisplay();
-				return;
-			}
 			if (!$selected.length) {
-				$paymentSubmit.prop('disabled', true).addClass('button-disabled');
 				updateSelectedPaymentDisplay();
 				return;
 			}
@@ -282,33 +266,36 @@
 				$('#wc-screenshot-section').slideUp(150);
 				$('#wc-trans-id-container').slideUp(150);
 				$('#wc_field_transaction_id').prop('required', false);
-				$paymentSubmit.text('Pay now');
+				$('#wc-submit-booking-btn').text('Proceed to Online Payment →');
+				$('#wc-booking-stage').val('create_checkout');
 			} else {
 				$('#wc-screenshot-section').slideDown(150);
 				$('#wc-trans-id-container').slideDown(150);
 				$('#wc_field_transaction_id').prop('required', true);
-				$paymentSubmit.text('Submit payment proof');
+				$('#wc-submit-booking-btn').text('Submit Consultation Request →');
+				$('#wc-booking-stage').val('submit_manual');
 			}
-			$paymentSubmit.prop('disabled', false).removeClass('button-disabled');
 			updateSelectedPaymentDisplay();
-		}
-
-		function initialDraftReady() {
-			return $('input[name="wc_draft_nonce"]').length > 0;
 		}
 
 		$('input[name="payment_method_id"]').on('change', function() {
 			updatePaymentMethodUI();
 		});
 
-		// Initialize payment method UI state
-		if (!initialDraftReady()) {
-			$('#wc-submit-booking-btn').prop('disabled', false).removeClass('button-disabled').text('Continue to payment');
-		}
+		// Keyboard interaction on payment option cards
+		$('.wc-payment-option-card').on('keydown', function(e) {
+			if (e.key === ' ' || e.key === 'Enter') {
+				if (!$(e.target).is('button, a, input')) {
+					e.preventDefault();
+					$(this).find('input[name="payment_method_id"]').prop('checked', true).trigger('change');
+				}
+			}
+		});
+
 		updatePaymentMethodUI();
 
 		// ==========================================
-		// 5b. Copy to Clipboard Handler (CR-2)
+		// 5b. Copy to Clipboard Handler
 		// ==========================================
 		function copyFallback(text) {
 			var $temp = $('<textarea>');
@@ -355,7 +342,7 @@
 		});
 
 		// ==========================================
-		// 5c. Country Filtering on Step 2 (CR-2)
+		// 5c. Country Filtering on Step 2
 		// ==========================================
 		function filterPaymentMethodsByCountry(countryCode) {
 			var visibleCount = 0;
@@ -385,7 +372,6 @@
 			});
 			if (visibleCount === 0 && !$available.filter(function() { return $(this).data('kind') === 'online'; }).length) {
 				$('#wc-no-methods-country-alert').slideDown(150);
-				$('#wc-submit-booking-btn').prop('disabled', true).addClass('button-disabled');
 			} else {
 				$('#wc-no-methods-country-alert').slideUp(150);
 				var $checkedVisible = $available.filter(':checked');
@@ -415,6 +401,16 @@
 				$('#wc-step2-country-select').val(c);
 			}
 			filterPaymentMethodsByCountry(c);
+
+			var $opt = $(this).find('option:selected');
+			var isBlocked = $opt.data('blocked') == '1';
+			if (isBlocked) {
+				$('#wc-country-blocked-alert').slideDown(150);
+				$('#wc-submit-booking-btn').prop('disabled', true).addClass('button-disabled');
+			} else {
+				$('#wc-country-blocked-alert').slideUp(150);
+				$('#wc-submit-booking-btn').prop('disabled', false).removeClass('button-disabled');
+			}
 		});
 
 		// Initial filter based on current selection
@@ -424,9 +420,13 @@
 		}
 
 		// ==========================================
-		// 6. Step Navigation & Focus Management (Rule 1)
+		// 6. Step Navigation & Focus Management
 		// ==========================================
 		function goToStep(step) {
+			step = parseInt(step, 10);
+			if (isNaN(step) || step < 1 || step > 3) {
+				step = 1;
+			}
 			currentStep = step;
 
 			// Update visible section
@@ -448,10 +448,18 @@
 			// Accessible focus transition: move focus to step heading
 			var $heading = $targetSection.find('.wc-step-heading');
 			$heading.attr('tabindex', '-1').focus();
+
+			// Smooth scroll to container top if scrolled down
+			var containerTop = $wrapper.offset().top - 40;
+			if ($(window).scrollTop() > containerTop) {
+				$('html, body').animate({ scrollTop: containerTop }, 250);
+			}
 		}
 
-		$('.wc-btn-next').on('click', function() {
-			var nextStep = $(this).data('next');
+		// Next Button Handler
+		$('.wc-btn-next').on('click', function(e) {
+			e.preventDefault();
+			var nextStep = parseInt($(this).data('next'), 10);
 
 			if (currentStep === 1) {
 				if (!$('input[name="consultation_type"]:checked').length) {
@@ -478,30 +486,16 @@
 			goToStep(nextStep);
 		});
 
-		$('.wc-btn-back').on('click', function() {
-			var backStep = $(this).data('back');
-			goToStep(backStep);
-		});
-		if (initialStep > 1) {
-			goToStep(initialStep);
-		}
-
-		// ==========================================
-		// 7. Client-Side Country & Age Checks
-		// ==========================================
-		$('#wc_field_country').on('change', function() {
-			var $opt = $(this).find('option:selected');
-			var isBlocked = $opt.data('blocked') == '1';
-
-			if (isBlocked) {
-				$('#wc-country-blocked-alert').slideDown(150);
-				$('#wc-submit-booking-btn').prop('disabled', true).addClass('button-disabled');
-			} else {
-				$('#wc-country-blocked-alert').slideUp(150);
-				$('#wc-submit-booking-btn').prop('disabled', initialDraftReady()).toggleClass('button-disabled', initialDraftReady());
-			}
+		// Back Button Handler
+		$('.wc-btn-back').on('click', function(e) {
+			e.preventDefault();
+			var backStep = parseInt($(this).data('back'), 10);
+			goToStep(backStep || 1);
 		});
 
+		// ==========================================
+		// 7. Client-Side Age Warning
+		// ==========================================
 		$('#wc_field_age').on('input change', function() {
 			var val = parseInt($(this).val(), 10);
 			if (val > 0 && val < 18) {
@@ -512,7 +506,7 @@
 		});
 
 		// ==========================================
-		// 8. Screenshot Drag & Drop + Preview (Rule 2)
+		// 8. Screenshot Drag & Drop + Preview
 		// ==========================================
 		var $fileInput = $('#wc_payment_proof');
 		var $dropzone  = $('#wc-dropzone');
@@ -548,7 +542,6 @@
 			}
 
 			// Extension / MIME check
-			var validTypes = ['image/jpeg', 'image/png', 'application/pdf'];
 			var ext = file.name.split('.').pop().toLowerCase();
 			if (['jpg', 'jpeg', 'png', 'pdf'].indexOf(ext) === -1) {
 				showUploadError((window.wcBookingData && window.wcBookingData.i18n && window.wcBookingData.i18n.invalidFileType) || 'Only JPG, PNG, and PDF files are accepted.');
@@ -626,67 +619,134 @@
 		});
 
 		// ==========================================
-		// 9. Submit Double-Click Prevention (Rule 3)
+		// 9. Submit Validation & Double-Click Prevention
 		// ==========================================
 		$('#wc-booking-multistep-form').on('submit', function(e) {
-			var stage = initialDraftReady() ? 'submit_manual' : 'create_draft';
-			var $btn = initialDraftReady() ? $('#wc-btn-step-2-next') : $('#wc-submit-booking-btn');
+			var $btn = $('#wc-submit-booking-btn');
 
-			if (initialDraftReady()) {
-				var $selectedPayment = $('input[name="payment_method_id"]:checked');
-				if (!$selectedPayment.length || $selectedPayment.prop('disabled')) {
-					e.preventDefault();
-					alert('Please select an available payment method.');
-					return false;
-				}
-				stage = $selectedPayment.data('kind') === 'online' ? 'create_checkout' : 'submit_manual';
-				$('#wc-booking-stage').val(stage);
-			} else {
-				$('#wc-booking-stage').val('create_draft');
+			// 1. Check Consultation Type & Mode
+			if (!$('input[name="consultation_type"]:checked').length) {
+				e.preventDefault();
+				alert('Please select a consultation package.');
+				goToStep(1);
+				return false;
+			}
+			if (!$('input[name="consult_mode"]:checked:visible').length) {
+				e.preventDefault();
+				alert('Please choose a consultation mode.');
+				goToStep(1);
+				return false;
 			}
 
-			// Check client-side age
+			// 2. Check Payment Method
+			var $selectedPayment = $('input[name="payment_method_id"]:checked');
+			if (!$selectedPayment.length || $selectedPayment.prop('disabled')) {
+				e.preventDefault();
+				alert('Please select an available payment method.');
+				goToStep(2);
+				return false;
+			}
+
+			var selKind = $selectedPayment.data('kind');
+			var stage   = (selKind === 'online') ? 'create_checkout' : 'submit_manual';
+			$('#wc-booking-stage').val(stage);
+
+			// 3. Check Name or Alias
+			var nameVal = $('#wc_field_name').val().trim();
+			if (!nameVal) {
+				e.preventDefault();
+				alert('Please enter your name or alias.');
+				goToStep(3);
+				$('#wc_field_name').focus();
+				return false;
+			}
+
+			// 4. Check client-side age
 			var age = parseInt($('#wc_field_age').val(), 10);
-			if (age < 18) {
+			if (isNaN(age) || age < 18) {
 				e.preventDefault();
 				alert('Consultations are strictly for adults aged 18 and older.');
+				goToStep(3);
 				$('#wc_field_age').focus();
 				return false;
 			}
 
-			// Check at least one contact
+			// 5. Check Gender
+			if (!$('#wc_field_gender').val()) {
+				e.preventDefault();
+				alert('Please select your gender.');
+				goToStep(3);
+				$('#wc_field_gender').focus();
+				return false;
+			}
+
+			// 6. Check Country
+			if (!$('#wc_field_country').val()) {
+				e.preventDefault();
+				alert('Please select your country of residence.');
+				goToStep(3);
+				$('#wc_field_country').focus();
+				return false;
+			}
+			var $opt = $('#wc_field_country').find('option:selected');
+			if ($opt.data('blocked') == '1') {
+				e.preventDefault();
+				alert('Consultations are not available in your selected country due to licensing compliance.');
+				goToStep(3);
+				return false;
+			}
+
+			// 7. Check at least one contact (phone or email)
 			var phone = $('#wc_field_phone').val().trim();
 			var email = $('#wc_field_email').val().trim();
 			if (!phone && !email) {
 				e.preventDefault();
 				alert('Please provide either a WhatsApp phone number or an email address.');
+				goToStep(3);
 				$('#wc_field_phone').focus();
 				return false;
 			}
+
+			// 8. Check Primary Concern
+			if (!$('#wc_field_concern').val()) {
+				e.preventDefault();
+				alert('Please select your primary consultation concern.');
+				goToStep(3);
+				$('#wc_field_concern').focus();
+				return false;
+			}
+
+			// 9. Manual Transfer specific checks (Screenshot & Transaction ID)
+			if (stage === 'submit_manual') {
+				var transId = $('#wc_field_transaction_id').val().trim();
+				if (!transId) {
+					e.preventDefault();
+					alert('Please enter the transaction ID or sender name for your transfer.');
+					goToStep(3);
+					$('#wc_field_transaction_id').focus();
+					return false;
+				}
+
+				if (!$fileInput[0].files || !$fileInput[0].files.length) {
+					e.preventDefault();
+					alert('Please upload your payment transfer screenshot proof before submitting.');
+					goToStep(3);
+					$('#wc-dropzone').focus();
+					return false;
+				}
+			}
+
+			// 10. Consent Checkbox
 			if (!$('input[name="consent_agreed"]').is(':checked')) {
 				e.preventDefault();
 				alert('Please review and accept the required policies and health-data consent.');
+				goToStep(3);
 				$('input[name="consent_agreed"]').focus();
 				return false;
 			}
 
-			// Proof is requested only after the browser-bound draft exists.
-			var selKind = $('input[name="payment_method_id"]:checked').data('kind');
-			if (stage === 'submit_manual' && selKind === 'manual' && (!$fileInput[0].files || !$fileInput[0].files.length)) {
-				e.preventDefault();
-				alert('Please upload your payment transfer screenshot proof before submitting.');
-				$('#wc-dropzone').focus();
-				return false;
-			}
-			if (stage === 'submit_manual' && selKind === 'manual' && !$('#wc_field_transaction_id').val().trim()) {
-				e.preventDefault();
-				alert('Please enter the transaction ID or sender name.');
-				$('#wc_field_transaction_id').focus();
-				return false;
-			}
-
-			// Disable submit button on first click
-			var loadingText = (stage === 'create_checkout') ? 'Redirecting to secure checkout...' : (stage === 'create_draft' ? 'Saving your details...' : 'Submitting payment proof...');
+			// Disable submit button on first click to prevent double submission
+			var loadingText = (stage === 'create_checkout') ? 'Redirecting to secure checkout...' : 'Submitting consultation request...';
 			$btn.prop('disabled', true).addClass('button-disabled').text(loadingText);
 			return true;
 		});

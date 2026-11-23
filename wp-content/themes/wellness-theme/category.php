@@ -2,7 +2,7 @@
 /**
  * The template for displaying Category pages
  *
- * Implements SRS v2.0 Section 8.3 Category Pages (Intimacy, Myths vs Facts, Men's Health, Women's Health, Lifestyle).
+ * Implements SRS v2.0 Section 8.3 Category Pages (Nutrition, Sleep, Fitness, Stress, Myths vs Facts).
  *
  * @package Wellness_Theme
  * @version 1.0.0

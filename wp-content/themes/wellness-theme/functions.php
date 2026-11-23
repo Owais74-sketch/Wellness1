@@ -13,10 +13,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 define( 'WELLNESS_THEME_VERSION', '1.0.0' );
 
 // Load Modular Core Files from inc/
+require_once get_template_directory() . '/inc/helpers.php';
 require_once get_template_directory() . '/inc/setup.php';
 require_once get_template_directory() . '/inc/widgets.php';
 require_once get_template_directory() . '/inc/customizer.php';
 require_once get_template_directory() . '/inc/template-tags.php';
+require_once get_template_directory() . '/inc/meta-boxes.php';
 
 /**
  * Enqueue scripts and styles.
@@ -29,7 +31,7 @@ function wellness_theme_scripts() {
 		'wellness-style',
 		get_stylesheet_uri(),
 		array(),
-		$theme_version
+		filemtime( get_stylesheet_directory() . '/style.css' )
 	);
 
 	// Main JavaScript
@@ -59,52 +61,60 @@ add_action( 'wp_enqueue_scripts', 'wellness_theme_scripts' );
  * Fallback menu for Header if no menu is assigned yet.
  */
 function wellness_fallback_primary_menu() {
-	$items = array(
-		array( 'title' => __( 'Home', 'wellness-theme' ), 'url' => home_url( '/' ) ),
-		array( 'title' => __( 'Articles', 'wellness-theme' ), 'url' => home_url( '/articles/' ) ),
-		array( 'title' => __( 'Myths vs Facts', 'wellness-theme' ), 'url' => home_url( '/myths-vs-facts/' ) ),
-		array( 'title' => __( 'Ask a Question', 'wellness-theme' ), 'url' => home_url( '/ask-a-question/' ) ),
-		array( 'title' => __( 'About', 'wellness-theme' ), 'url' => home_url( '/about/' ) ),
-		array( 'title' => __( 'Track Request', 'wellness-theme' ), 'url' => home_url( '/track-my-request/' ) ),
-		array( 'title' => __( 'Book Consultation', 'wellness-theme' ), 'url' => home_url( '/book-consultation/' ), 'is_cta' => true ),
-	);
-
-	echo '<ul class="nav-menu">';
-	foreach ( $items as $item ) {
-		$class = ! empty( $item['is_cta'] ) ? 'nav-cta' : '';
-		printf(
-			'<li class="%s"><a href="%s">%s</a></li>',
-			esc_attr( $class ),
-			esc_url( $item['url'] ),
-			esc_html( $item['title'] )
-		);
-	}
-	echo '</ul>';
+	?>
+	<ul class="nav-menu">
+		<li><a href="<?php echo esc_url( home_url( '/' ) ); ?>"><?php esc_html_e( 'Home', 'wellness-theme' ); ?></a></li>
+		<li class="menu-item-has-children">
+			<a href="<?php echo esc_url( home_url( '/articles/' ) ); ?>"><?php esc_html_e( 'Articles', 'wellness-theme' ); ?></a>
+			<ul class="sub-menu">
+				<li><a href="<?php echo esc_url( home_url( '/articles/' ) ); ?>"><?php esc_html_e( 'All Articles & Guides', 'wellness-theme' ); ?></a></li>
+				<li><a href="<?php echo esc_url( home_url( '/category/nutrition-eating/' ) ); ?>"><?php esc_html_e( 'Nutrition &amp; Eating', 'wellness-theme' ); ?></a></li>
+				<li><a href="<?php echo esc_url( home_url( '/category/fitness-movement/' ) ); ?>"><?php esc_html_e( 'Fitness &amp; Movement', 'wellness-theme' ); ?></a></li>
+				<li><a href="<?php echo esc_url( home_url( '/category/stress-mind/' ) ); ?>"><?php esc_html_e( 'Stress &amp; Mind', 'wellness-theme' ); ?></a></li>
+				<li><a href="<?php echo esc_url( home_url( '/category/sleep-recovery/' ) ); ?>"><?php esc_html_e( 'Sleep &amp; Recovery', 'wellness-theme' ); ?></a></li>
+				<li><a href="<?php echo esc_url( home_url( '/category/myths-vs-facts/' ) ); ?>"><?php esc_html_e( 'Myths vs Facts', 'wellness-theme' ); ?></a></li>
+			</ul>
+		</li>
+		<li><a href="<?php echo esc_url( home_url( '/myths-vs-facts/' ) ); ?>"><?php esc_html_e( 'Myths vs Facts', 'wellness-theme' ); ?></a></li>
+		<?php if ( wellness_questions_enabled() ) : ?>
+			<li><a href="<?php echo esc_url( home_url( '/ask-a-question/' ) ); ?>"><?php esc_html_e( 'Ask a Question', 'wellness-theme' ); ?></a></li>
+		<?php endif; ?>
+		<li><a href="<?php echo esc_url( home_url( '/about/' ) ); ?>"><?php esc_html_e( 'About', 'wellness-theme' ); ?></a></li>
+		<?php if ( wellness_consultations_enabled() ) : ?>
+			<li><a href="<?php echo esc_url( home_url( '/track-my-request/' ) ); ?>"><?php esc_html_e( 'Track Request', 'wellness-theme' ); ?></a></li>
+			<li class="nav-cta"><a href="<?php echo esc_url( home_url( '/book-consultation/' ) ); ?>"><?php esc_html_e( 'Book Consultation', 'wellness-theme' ); ?></a></li>
+		<?php endif; ?>
+	</ul>
+	<?php
 }
 
 /**
  * Fallback menu for Mobile Drawer.
  */
 function wellness_fallback_mobile_menu() {
-	$items = array(
-		array( 'title' => __( 'Home', 'wellness-theme' ), 'url' => home_url( '/' ) ),
-		array( 'title' => __( 'Articles & Education', 'wellness-theme' ), 'url' => home_url( '/articles/' ) ),
-		array( 'title' => __( 'Myths vs Facts', 'wellness-theme' ), 'url' => home_url( '/myths-vs-facts/' ) ),
-		array( 'title' => __( 'Ask Anonymously (Free Q&A)', 'wellness-theme' ), 'url' => home_url( '/ask-a-question/' ) ),
-		array( 'title' => __( 'Our Doctor & Mission', 'wellness-theme' ), 'url' => home_url( '/about/' ) ),
-		array( 'title' => __( 'Track My Request', 'wellness-theme' ), 'url' => home_url( '/track-my-request/' ) ),
-		array( 'title' => __( 'Book Private Consultation', 'wellness-theme' ), 'url' => home_url( '/book-consultation/' ), 'is_cta' => true ),
-	);
-
-	echo '<ul class="mobile-nav-menu">';
-	foreach ( $items as $item ) {
-		$class = ! empty( $item['is_cta'] ) ? 'nav-cta' : '';
-		printf(
-			'<li class="%s"><a href="%s">%s</a></li>',
-			esc_attr( $class ),
-			esc_url( $item['url'] ),
-			esc_html( $item['title'] )
-		);
-	}
-	echo '</ul>';
+	?>
+	<ul class="mobile-nav-menu">
+		<li><a href="<?php echo esc_url( home_url( '/' ) ); ?>"><?php esc_html_e( 'Home', 'wellness-theme' ); ?></a></li>
+		<li class="menu-item-has-children">
+			<a href="<?php echo esc_url( home_url( '/articles/' ) ); ?>"><?php esc_html_e( 'Articles & Topics', 'wellness-theme' ); ?></a>
+			<ul class="sub-menu">
+				<li><a href="<?php echo esc_url( home_url( '/articles/' ) ); ?>"><?php esc_html_e( 'All Articles', 'wellness-theme' ); ?></a></li>
+				<li><a href="<?php echo esc_url( home_url( '/category/nutrition-eating/' ) ); ?>"><?php esc_html_e( 'Nutrition &amp; Eating', 'wellness-theme' ); ?></a></li>
+				<li><a href="<?php echo esc_url( home_url( '/category/fitness-movement/' ) ); ?>"><?php esc_html_e( 'Fitness &amp; Movement', 'wellness-theme' ); ?></a></li>
+				<li><a href="<?php echo esc_url( home_url( '/category/stress-mind/' ) ); ?>"><?php esc_html_e( 'Stress &amp; Mind', 'wellness-theme' ); ?></a></li>
+				<li><a href="<?php echo esc_url( home_url( '/category/sleep-recovery/' ) ); ?>"><?php esc_html_e( 'Sleep &amp; Recovery', 'wellness-theme' ); ?></a></li>
+				<li><a href="<?php echo esc_url( home_url( '/category/myths-vs-facts/' ) ); ?>"><?php esc_html_e( 'Myths vs Facts Topics', 'wellness-theme' ); ?></a></li>
+			</ul>
+		</li>
+		<li><a href="<?php echo esc_url( home_url( '/myths-vs-facts/' ) ); ?>"><?php esc_html_e( 'Myths vs Facts', 'wellness-theme' ); ?></a></li>
+		<?php if ( wellness_questions_enabled() ) : ?>
+			<li><a href="<?php echo esc_url( home_url( '/ask-a-question/' ) ); ?>"><?php esc_html_e( 'Ask Anonymously (Free Q&A)', 'wellness-theme' ); ?></a></li>
+		<?php endif; ?>
+		<li><a href="<?php echo esc_url( home_url( '/about/' ) ); ?>"><?php esc_html_e( 'Our Doctor & Mission', 'wellness-theme' ); ?></a></li>
+		<?php if ( wellness_consultations_enabled() ) : ?>
+			<li><a href="<?php echo esc_url( home_url( '/track-my-request/' ) ); ?>"><?php esc_html_e( 'Track My Request', 'wellness-theme' ); ?></a></li>
+			<li class="nav-cta"><a href="<?php echo esc_url( home_url( '/book-consultation/' ) ); ?>"><?php esc_html_e( 'Book Private Consultation', 'wellness-theme' ); ?></a></li>
+		<?php endif; ?>
+	</ul>
+	<?php
 }

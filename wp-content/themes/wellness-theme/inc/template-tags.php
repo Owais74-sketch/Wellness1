@@ -21,7 +21,7 @@ function wellness_site_branding() {
 		$site_title = get_bloginfo( 'name' );
 		$site_desc  = get_bloginfo( 'description' );
 		if ( empty( $site_desc ) ) {
-			$site_desc = esc_html__( 'Private Health Information', 'wellness-theme' );
+			$site_desc = esc_html__( 'Everyday Wellness', 'wellness-theme' );
 		}
 		?>
 		<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="site-branding" rel="home">
@@ -46,6 +46,10 @@ function wellness_site_branding() {
  * @param string $additional_classes Extra CSS classes.
  */
 function wellness_render_quick_exit_button( $additional_classes = '' ) {
+	// Respect the Customizer toggle (default: OFF for the demo).
+	if ( ! get_theme_mod( 'wellness_show_quick_exit', false ) ) {
+		return;
+	}
 	$class = trim( 'quick-exit-btn ' . $additional_classes );
 	?>
 	<button type="button" class="<?php echo esc_attr( $class ); ?>" title="<?php esc_attr_e( 'Quick Exit: Immediately leave this site and open Google', 'wellness-theme' ); ?>" aria-label="<?php esc_attr_e( 'Quick Exit from this site', 'wellness-theme' ); ?>">
@@ -63,9 +67,13 @@ function wellness_render_quick_exit_button( $additional_classes = '' ) {
  */
 function wellness_get_medical_disclaimer_text() {
 	$default = esc_html__(
-		'Medical Disclaimer: The educational content and consultation services provided on this platform are designed for informational and counseling purposes only. They do not constitute formal medical diagnosis, physical examinations, or prescription writing unless explicitly licensed within the patient\'s jurisdiction. If you are experiencing a medical or mental health emergency, please contact your local emergency services (e.g., 911, 112, 999) or crisis helpline immediately.',
+		'Medical disclaimer: The content on this website is for general education only. It does not replace professional medical advice, diagnosis or treatment. If you have a medical concern or emergency, contact your local emergency services or a qualified healthcare professional.',
 		'wellness-theme'
 	);
+	$val = get_theme_mod( 'wellness_footer_disclaimer', '' );
+	if ( ! empty( $val ) ) {
+		return $val;
+	}
 	return get_theme_mod( 'wellness_disclaimer_text', $default );
 }
 
@@ -74,9 +82,13 @@ function wellness_get_medical_disclaimer_text() {
  */
 function wellness_footer_about_text() {
 	$default = esc_html__(
-		'Honest, private information about intimacy, relationships, and sexual wellness in a respectful, non-judgmental space.',
+		'Your everyday guide to nutrition, sleep, fitness and stress management.',
 		'wellness-theme'
 	);
+	$val = get_theme_mod( 'wellness_footer_tagline', '' );
+	if ( ! empty( $val ) ) {
+		return $val;
+	}
 	return get_theme_mod( 'wellness_footer_about', $default );
 }
 

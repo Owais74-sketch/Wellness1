@@ -92,6 +92,14 @@ class WC_Options {
 		if ( false === get_option( 'wc_platforms' ) ) {
 			add_option( 'wc_platforms', self::get_default_platforms() );
 		}
+
+		// Public Feature Visibility Switches (Default OFF)
+		if ( false === get_option( 'wc_consultations_enabled' ) ) {
+			add_option( 'wc_consultations_enabled', '0' );
+		}
+		if ( false === get_option( 'wc_questions_enabled' ) ) {
+			add_option( 'wc_questions_enabled', '0' );
+		}
 	}
 
 	/**

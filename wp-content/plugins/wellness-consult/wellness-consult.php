@@ -45,6 +45,7 @@ require_once WC_PLUGIN_DIR . 'includes/class-wc-booking-form.php';
 require_once WC_PLUGIN_DIR . 'includes/class-wc-booking-handler.php';
 require_once WC_PLUGIN_DIR . 'includes/class-wc-track-request.php';
 require_once WC_PLUGIN_DIR . 'includes/class-wc-questions.php';
+require_once WC_PLUGIN_DIR . 'includes/class-wc-visibility.php';
 require_once WC_PLUGIN_DIR . 'includes/gateways/interface-wc-gateway.php';
 require_once WC_PLUGIN_DIR . 'includes/gateways/class-wc-gateway-registry.php';
 require_once WC_PLUGIN_DIR . 'includes/gateways/class-wc-gateway-stripe.php';
@@ -89,6 +90,7 @@ add_action( 'init', array( 'WC_Booking_Form', 'init' ) );
 add_action( 'init', array( 'WC_Booking_Handler', 'init' ) );
 add_action( 'init', array( 'WC_Track_Request', 'init' ) );
 add_action( 'init', array( 'WC_Questions', 'init' ) );
+add_action( 'init', array( 'WC_Visibility', 'init' ) );
 add_action( 'init', array( 'WC_Proof_Viewer', 'init' ) );
 add_action( 'init', array( 'WC_Cron', 'init' ) );
 
@@ -111,3 +113,25 @@ function wc_consult_load_textdomain() {
 	load_plugin_textdomain( 'wellness-consult', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
 }
 add_action( 'init', 'wc_consult_load_textdomain' );
+
+/**
+ * SEO: patient-facing private pages must never be indexed.
+ *
+ * Change the slugs below to match your real page slugs
+ * (WordPress > Pages > Permalink, last part of the URL).
+ * Rank Math automatically leaves noindex pages out of the sitemap.
+ */
+function wc_consult_private_page_slugs() {
+	return apply_filters(
+		'wc_consult_private_page_slugs',
+		array( 'track-my-request', 'booking-success', 'payment-cancelled' )
+	);
+}
+
+add_filter( 'rank_math/frontend/robots', function ( $robots ) {
+	if ( is_page( wc_consult_private_page_slugs() ) ) {
+		$robots['index']  = 'noindex';
+		$robots['follow'] = 'nofollow';
+	}
+	return $robots;
+} );

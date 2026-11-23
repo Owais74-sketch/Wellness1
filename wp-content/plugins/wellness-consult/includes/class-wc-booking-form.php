@@ -88,6 +88,9 @@ class WC_Booking_Form {
 	 */
 	public static function get_policy_link( $slug, $label ) {
 		$page = get_page_by_path( $slug );
+		if ( ! $page && 'terms' === $slug ) {
+			$page = get_page_by_path( 'terms-of-service' );
+		}
 		if ( $page && 'publish' === $page->post_status ) {
 			return sprintf( '<a href="%s" target="_blank" rel="noopener noreferrer">%s</a>', esc_url( get_permalink( $page->ID ) ), esc_html( $label ) );
 		}
@@ -100,6 +103,11 @@ class WC_Booking_Form {
 	 * @return string HTML output.
 	 */
 	public static function render_shortcode() {
+		// Consultation Visibility Guard
+		if ( ! get_option( 'wc_consultations_enabled', false ) ) {
+			return '<div class="wc-unavailable-notice" style="background:var(--surface,#fff); border:1px solid var(--border,#ddd); padding:2.5rem 2rem; border-radius:8px; text-align:center; max-width:640px; margin:2rem auto;"><p style="margin:0; font-size:1.1rem; color:var(--text,#333); font-weight:500;">' . esc_html__( 'Consultations are not currently available. Please check back later.', 'wellness-consult' ) . '</p></div>';
+		}
+
 		// 1. Check for PRG Confirmation Screen
 		if ( isset( $_GET['wc_confirmed'] ) && ! empty( $_GET['token'] ) ) {
 			return self::render_confirmation_screen( sanitize_text_field( wp_unslash( $_GET['token'] ) ) );
@@ -257,12 +265,12 @@ class WC_Booking_Form {
 				<div class="wc-progress-line"></div>
 				<div class="wc-progress-step" id="wc-step-pill-2" data-step="2">
 					<div class="wc-step-circle">2</div>
-					<div class="wc-step-label"><?php esc_html_e( 'Your details', 'wellness-consult' ); ?></div>
+					<div class="wc-step-label"><?php esc_html_e( 'Payment Method', 'wellness-consult' ); ?></div>
 				</div>
 				<div class="wc-progress-line"></div>
 				<div class="wc-progress-step" id="wc-step-pill-3" data-step="3">
 					<div class="wc-step-circle">3</div>
-					<div class="wc-step-label"><?php esc_html_e( 'Payment', 'wellness-consult' ); ?></div>
+					<div class="wc-step-label"><?php esc_html_e( 'Your Details & Proof', 'wellness-consult' ); ?></div>
 				</div>
 			</div>
 
@@ -404,7 +412,7 @@ class WC_Booking_Form {
 					<div class="wc-step-buttons">
 						<div></div>
 						<button type="button" class="button button-primary wc-btn-next" id="wc-btn-step-1-next" data-next="2">
-							<?php esc_html_e( 'Continue to your details', 'wellness-consult' ); ?> &rarr;
+							<?php esc_html_e( 'Continue to Payment Method', 'wellness-consult' ); ?> &rarr;
 						</button>
 					</div>
 				</section>
@@ -414,10 +422,10 @@ class WC_Booking_Form {
 				<!-- ========================================== -->
 				<section class="wc-step-section" id="wc-step-2" aria-labelledby="wc-step-2-title">
 					<h2 id="wc-step-2-title" class="wc-step-heading" tabindex="-1">
-						<?php esc_html_e( '2. Your details', 'wellness-consult' ); ?>
+						<?php esc_html_e( '2. Choose Payment Method', 'wellness-consult' ); ?>
 					</h2>
 					<p class="wc-step-desc">
-						<?php esc_html_e( 'Enter your details and consent. Your booking is not confirmed until payment is completed or verified.', 'wellness-consult' ); ?>
+						<?php esc_html_e( 'Select your preferred payment method. Bank details, hosted payment links, and transfer instructions are shown below.', 'wellness-consult' ); ?>
 					</p>
 
 					<div class="wc-fee-summary-strip wc-step2-summary">
@@ -704,11 +712,11 @@ class WC_Booking_Form {
 					</div>
 
 					<div class="wc-step-buttons">
-						<button type="button" class="button button-secondary wc-btn-back" data-back="2">
-							&larr; <?php esc_html_e( 'Back', 'wellness-consult' ); ?>
+						<button type="button" class="button button-secondary wc-btn-back" data-back="1">
+							&larr; <?php esc_html_e( 'Back to Package & Mode', 'wellness-consult' ); ?>
 						</button>
-						<button type="submit" class="button button-primary wc-btn-submit" id="wc-btn-step-2-next" <?php disabled( empty( $old_data['draft_exists'] ) ); ?>>
-							<?php esc_html_e( 'Continue to payment', 'wellness-consult' ); ?> &rarr;
+						<button type="button" class="button button-primary wc-btn-next" id="wc-btn-step-2-next" data-next="3">
+							<?php esc_html_e( 'Continue to Patient Details', 'wellness-consult' ); ?> &rarr;
 						</button>
 					</div>
 				</section>
@@ -718,10 +726,10 @@ class WC_Booking_Form {
 				<!-- ========================================== -->
 				<section class="wc-step-section" id="wc-step-3" aria-labelledby="wc-step-3-title">
 					<h2 id="wc-step-3-title" class="wc-step-heading" tabindex="-1">
-						<?php esc_html_e( '3. Payment', 'wellness-consult' ); ?>
+						<?php esc_html_e( '3. Confidential Patient Details & Verification', 'wellness-consult' ); ?>
 					</h2>
 					<p class="wc-step-desc">
-						<?php esc_html_e( 'Choose a payment method. For manual payment, upload your proof after you have paid. No booking is confirmed before payment verification.', 'wellness-consult' ); ?>
+						<?php esc_html_e( 'Enter your consultation details and upload your transfer screenshot. Consultations are strictly confidential.', 'wellness-consult' ); ?>
 					</p>
 
 					<!-- Selected Summary Strip for Step 3 (CR-1) -->
@@ -945,11 +953,11 @@ class WC_Booking_Form {
 					</div>
 
 					<div class="wc-step-buttons">
-						<button type="button" class="button button-secondary wc-btn-back" data-back="1">
-							&larr; <?php esc_html_e( 'Back to type and mode', 'wellness-consult' ); ?>
+						<button type="button" class="button button-secondary wc-btn-back" data-back="2">
+							&larr; <?php esc_html_e( 'Back to Payment Method', 'wellness-consult' ); ?>
 						</button>
-						<button type="submit" class="button button-primary wc-btn-submit" id="wc-submit-booking-btn" <?php disabled( ! empty( $old_data['draft_exists'] ) ); ?>>
-							<?php esc_html_e( 'Submit payment proof', 'wellness-consult' ); ?> &rarr;
+						<button type="submit" class="button button-primary wc-btn-submit" id="wc-submit-booking-btn">
+							<?php esc_html_e( 'Submit Consultation Request', 'wellness-consult' ); ?> &rarr;
 						</button>
 					</div>
 				</section>

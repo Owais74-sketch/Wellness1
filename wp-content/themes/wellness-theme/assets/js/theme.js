@@ -22,9 +22,13 @@
   })();
 
   /**
+  /**
    * 1. QUICK EXIT FUNCTIONALITY (FR-2)
+   * Only active when the Customizer toggle is ON (data-quick-exit on <body>).
    * Instantly navigates to a neutral site and replaces history so Back button cannot return.
    */
+  const quickExitEnabled = document.body && document.body.hasAttribute('data-quick-exit');
+
   function triggerQuickExit() {
     try {
       // Clear sensitive session storage
@@ -45,25 +49,27 @@
     }
   });
 
-  // Hotkey: Triple Escape key press triggers Quick Exit for privacy safety
-  let escapePressCount = 0;
-  let escapeTimeout = null;
+  // Hotkey: Triple Escape key press — only when Quick Exit is enabled
+  if (quickExitEnabled) {
+    let escapePressCount = 0;
+    let escapeTimeout = null;
 
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') {
-      escapePressCount++;
-      clearTimeout(escapeTimeout);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        escapePressCount++;
+        clearTimeout(escapeTimeout);
 
-      if (escapePressCount >= 3) {
-        triggerQuickExit();
-        return;
+        if (escapePressCount >= 3) {
+          triggerQuickExit();
+          return;
+        }
+
+        escapeTimeout = setTimeout(function () {
+          escapePressCount = 0;
+        }, 1200);
       }
-
-      escapeTimeout = setTimeout(function () {
-        escapePressCount = 0;
-      }, 1200);
-    }
-  });
+    });
+  }
 
   /**
    * 2. MOBILE NAVIGATION DRAWER

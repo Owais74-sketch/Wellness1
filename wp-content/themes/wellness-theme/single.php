@@ -67,10 +67,10 @@ get_header();
 				<div class="key-points-box" style="background: var(--color-surface-subtle); border-left: 4px solid var(--color-secondary); padding: 1.25rem 1.5rem; border-radius: var(--radius-md); margin-bottom: 2rem;">
 					<h4 style="margin-bottom: 0.5rem; color: var(--color-primary); font-size: var(--text-base);">
 						<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display:inline; vertical-align:middle;" aria-hidden="true"><polyline points="20 6 9 17 4 12"></polyline></svg>
-						<?php esc_html_e( 'Key Takeaways at a Glance', 'wellness-theme' ); ?>
+						<?php echo esc_html( get_theme_mod( 'wellness_single_key_points_title', __( 'Key Takeaways at a Glance', 'wellness-theme' ) ) ); ?>
 					</h4>
 					<p class="text-sm" style="margin: 0; color: var(--color-text-secondary);">
-						<?php esc_html_e( 'This educational article covers physiological and psychological factors, scientifically proven strategies, and clear signs of when you should consult a licensed doctor.', 'wellness-theme' ); ?>
+						<?php echo esc_html( get_theme_mod( 'wellness_single_key_points_text', __( 'This educational article covers physiological and psychological factors, scientifically proven strategies, and clear signs of when you should consult a licensed doctor.', 'wellness-theme' ) ) ); ?>
 					</p>
 				</div>
 
@@ -83,10 +83,10 @@ get_header();
 				<div class="doctor-alert-box" style="background: var(--surface-2); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: var(--radius-md); padding: 1.25rem 1.5rem; margin: 2.5rem 0;">
 					<h4 style="color: var(--heading); margin-bottom: 0.5rem; font-size: var(--text-base);">
 						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline; vertical-align:middle;" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-						<?php esc_html_e( 'When to Consult a Qualified Doctor', 'wellness-theme' ); ?>
+						<?php echo esc_html( get_theme_mod( 'wellness_single_doctor_box_title', __( 'When to Consult a Qualified Doctor', 'wellness-theme' ) ) ); ?>
 					</h4>
 					<p class="text-sm" style="margin:0; color: var(--text);">
-						<?php esc_html_e( 'If symptoms persist for over 3 months, cause emotional or relationship distress, or are accompanied by severe pain or sudden changes, an individual private consultation is strongly recommended.', 'wellness-theme' ); ?>
+						<?php echo esc_html( get_theme_mod( 'wellness_single_doctor_box_text', __( 'If symptoms persist for over 3 months, cause emotional or relationship distress, or are accompanied by severe pain or sudden changes, an individual private consultation is strongly recommended.', 'wellness-theme' ) ) ); ?>
 					</p>
 				</div>
 
@@ -101,17 +101,17 @@ get_header();
 						<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
 					</div>
 					<div>
-						<span class="text-xs text-muted" style="text-transform:uppercase; font-weight:700; letter-spacing:0.04em;"><?php esc_html_e( 'Consultant Author', 'wellness-theme' ); ?></span>
+						<span class="text-xs text-muted" style="text-transform:uppercase; font-weight:700; letter-spacing:0.04em;"><?php echo esc_html( get_theme_mod( 'wellness_single_author_label', __( 'Consultant Author', 'wellness-theme' ) ) ); ?></span>
 						<h4 style="margin: 0.15rem 0; font-size: var(--text-lg); color: var(--color-primary);"><?php the_author(); ?></h4>
 						<p class="text-sm text-muted" style="margin:0;">
-							<?php esc_html_e( 'Educational & wellness guidance reviewed according to clinical standards.', 'wellness-theme' ); ?>
+							<?php esc_html_e( 'Educational & wellness guidance based on evidence-based sources.', 'wellness-theme' ); ?>
 						</p>
 					</div>
 				</div>
 
 				<!-- Share Options: Copy Link and WhatsApp Only (SRS 8.4) -->
 				<div class="article-share-strip" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap: 1rem; padding: 1rem 0; border-top: 1px solid var(--color-border); border-bottom: 1px solid var(--color-border); margin-bottom: 2.5rem;">
-					<span class="text-sm" style="font-weight:600; color:var(--color-primary);"><?php esc_html_e( 'Discreet Sharing:', 'wellness-theme' ); ?></span>
+					<span class="text-sm" style="font-weight:600; color:var(--color-primary);"><?php echo esc_html( get_theme_mod( 'wellness_single_share_label', __( 'Share this article:', 'wellness-theme' ) ) ); ?></span>
 					<div style="display:flex; gap: 0.5rem;">
 						<!-- WhatsApp Share -->
 						<a href="https://api.whatsapp.com/send?text=<?php echo rawurlencode( get_the_title() . ' - ' . get_permalink() ); ?>" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm">
@@ -119,7 +119,7 @@ get_header();
 							<?php esc_html_e( 'Share via WhatsApp', 'wellness-theme' ); ?>
 						</a>
 						<!-- Copy Link Button -->
-						<button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText(window.location.href); alert('<?php echo esc_js( __( 'Link copied discreetly to clipboard', 'wellness-theme' ) ); ?>');">
+						<button type="button" class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText(window.location.href); alert('<?php echo esc_js( __( 'Link copied to clipboard', 'wellness-theme' ) ); ?>');">
 							<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline; vertical-align:middle;" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
 							<?php esc_html_e( 'Copy Link', 'wellness-theme' ); ?>
 						</button>
@@ -127,19 +127,50 @@ get_header();
 				</div>
 
 				<!-- Call to Action Blocks (SRS 8.4) -->
+				<?php
+				$consult_on   = function_exists( 'wellness_consultations_enabled' ) ? wellness_consultations_enabled() : false;
+				$questions_on = function_exists( 'wellness_questions_enabled' ) ? wellness_questions_enabled() : false;
+				?>
 				<div class="article-cta-box" style="background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-primary-light) 100%); border: 1px solid var(--color-border); border-radius: var(--radius-lg); padding: 2rem; text-align:center; margin-bottom: 3rem;">
-					<h3 style="color: var(--color-primary); margin-bottom: 0.5rem;"><?php esc_html_e( 'Have Questions About What You Just Read?', 'wellness-theme' ); ?></h3>
-					<p class="text-muted" style="max-width: 580px; margin: 0 auto 1.5rem;">
-						<?php esc_html_e( 'Request a private consultation, or ask your question anonymously for free.', 'wellness-theme' ); ?>
-					</p>
-					<div style="display:flex; justify-content:center; gap: 1rem; flex-wrap:wrap;">
-						<a href="<?php echo esc_url( home_url( '/book-consultation/' ) ); ?>" class="btn btn-secondary btn-pill">
-							<?php esc_html_e( 'Book Private Consultation', 'wellness-theme' ); ?>
-						</a>
-						<a href="<?php echo esc_url( home_url( '/ask-a-question/' ) ); ?>" class="btn btn-outline btn-pill">
-							<?php esc_html_e( 'Ask Anonymously (Free)', 'wellness-theme' ); ?>
-						</a>
-					</div>
+					<?php if ( $consult_on ) : ?>
+						<h3 style="color: var(--color-primary); margin-bottom: 0.5rem;"><?php esc_html_e( 'Have Questions About What You Just Read?', 'wellness-theme' ); ?></h3>
+						<p class="text-muted" style="max-width: 580px; margin: 0 auto 1.5rem;">
+							<?php esc_html_e( 'Request a private consultation, or ask your question anonymously for free.', 'wellness-theme' ); ?>
+						</p>
+						<div style="display:flex; justify-content:center; gap: 1rem; flex-wrap:wrap;">
+							<a href="<?php echo esc_url( home_url( '/book-consultation/' ) ); ?>" class="btn btn-secondary btn-pill">
+								<?php esc_html_e( 'Book Private Consultation', 'wellness-theme' ); ?>
+							</a>
+							<?php if ( $questions_on ) : ?>
+								<a href="<?php echo esc_url( home_url( '/ask-a-question/' ) ); ?>" class="btn btn-outline btn-pill">
+									<?php esc_html_e( 'Ask Anonymously (Free)', 'wellness-theme' ); ?>
+								</a>
+							<?php endif; ?>
+						</div>
+					<?php elseif ( $questions_on ) : ?>
+						<h3 style="color: var(--color-primary); margin-bottom: 0.5rem;"><?php esc_html_e( 'Have Questions About What You Just Read?', 'wellness-theme' ); ?></h3>
+						<p class="text-muted" style="max-width: 580px; margin: 0 auto 1.5rem;">
+							<?php esc_html_e( 'Ask your intimate wellness question anonymously and free of charge.', 'wellness-theme' ); ?>
+						</p>
+						<div style="display:flex; justify-content:center; gap: 1rem; flex-wrap:wrap;">
+							<a href="<?php echo esc_url( home_url( '/ask-a-question/' ) ); ?>" class="btn btn-secondary btn-pill">
+								<?php esc_html_e( 'Ask Anonymously (Free)', 'wellness-theme' ); ?>
+							</a>
+						</div>
+					<?php else : ?>
+						<h3 style="color: var(--color-primary); margin-bottom: 0.5rem;"><?php esc_html_e( 'Want to Learn More?', 'wellness-theme' ); ?></h3>
+						<p class="text-muted" style="max-width: 580px; margin: 0 auto 1.5rem;">
+							<?php esc_html_e( 'Browse our comprehensive library of medically reviewed articles, myths vs facts, and guides.', 'wellness-theme' ); ?>
+						</p>
+						<div style="display:flex; justify-content:center; gap: 1rem; flex-wrap:wrap;">
+							<a href="<?php echo esc_url( home_url( '/articles/' ) ); ?>" class="btn btn-secondary btn-pill">
+								<?php esc_html_e( 'Explore All Articles', 'wellness-theme' ); ?>
+							</a>
+							<a href="<?php echo esc_url( home_url( '/myths-vs-facts/' ) ); ?>" class="btn btn-outline btn-pill">
+								<?php esc_html_e( 'Browse Myths vs Facts', 'wellness-theme' ); ?>
+							</a>
+						</div>
+					<?php endif; ?>
 				</div>
 
 			</article>

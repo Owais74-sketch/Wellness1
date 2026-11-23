@@ -12,6 +12,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// Noindex: booking page should not appear in search results.
+add_filter( 'wp_robots', 'wp_robots_no_robots' );
+
 get_header();
 ?>
 
@@ -21,11 +24,11 @@ get_header();
 		<!-- Intro Header (SRS 8.7: Who gives it, privacy promise) -->
 		<div class="booking-intro text-center" style="max-width: 780px; margin: 0 auto 2.5rem;">
 			<span class="badge badge-secondary" style="margin-bottom: 0.75rem;">
-				<?php esc_html_e( 'Private and confidential • Worldwide time zone matching', 'wellness-theme' ); ?>
+				<?php esc_html_e( 'Demo booking • No real payments • Worldwide time zone support', 'wellness-theme' ); ?>
 			</span>
 			<h1><?php the_title(); ?></h1>
 			<p class="lead text-muted">
-				<?php esc_html_e( 'Request a private consultation from the comfort of your home. Use any name or alias you prefer. Your information is handled privately and confidentially.', 'wellness-theme' ); ?>
+				<?php esc_html_e( 'This is a portfolio demo. No real consultations or payments occur. Use any name or alias you prefer.', 'wellness-theme' ); ?>
 			</p>
 		</div>
 

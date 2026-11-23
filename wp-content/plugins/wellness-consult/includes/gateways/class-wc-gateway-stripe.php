@@ -6,8 +6,16 @@
  * cryptographic webhook verification with replay protection, idempotency deduplication,
  * server-side amount & currency verification, request binding, and refund controls (FR-8, FR-12, FR-13).
  *
+ * Phase 11 hardening:
+ * - Webhook events are locked while being processed, so two simultaneous deliveries of
+ *   the same event (Stripe retries) cannot both confirm the payment.
+ * - An amount/currency mismatch is recorded once and acknowledged (HTTP 200) instead of
+ *   being retried by Stripe for days and flooding the activity log.
+ * - client_reference_id falls back to the request's Reference ID when no gateway reference exists.
+ * - Full refunds send an Idempotency-Key so a double click cannot refund twice.
+ *
  * @package Wellness_Consult
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -17,6 +25,7 @@ class WC_Gateway_Stripe implements WC_Gateway_Interface {
 	const STRIPE_API_BASE   = 'https://api.stripe.com/v1';
 	const GATEWAY_ID        = 'stripe';
 	const REPLAY_TOLERANCE  = 300; // 5-minute replay tolerance window
+	const EVENT_LOCK_TTL    = 120; // Seconds before an abandoned event lock may be taken over.
 
 	/**
 	 * Unique gateway identifier.
@@ -149,6 +158,9 @@ class WC_Gateway_Stripe implements WC_Gateway_Interface {
 		}
 
 		$reference_id = get_post_meta( $post_id, '_wc_gateway_reference', true );
+		if ( empty( $reference_id ) ) {
+			$reference_id = get_post_meta( $post_id, '_wc_reference_id', true );
+		}
 		$fee_usd      = (float) get_post_meta( $post_id, '_wc_fee_usd', true );
 		$type_name    = get_post_meta( $post_id, '_wc_type_name', true );
 		$consult_mode = get_post_meta( $post_id, '_wc_consult_mode', true );
@@ -216,6 +228,40 @@ class WC_Gateway_Stripe implements WC_Gateway_Interface {
 	}
 
 	/**
+	 * Take an exclusive lock for one webhook event.
+	 *
+	 * add_option() fails when the option already exists, so only one request wins.
+	 * An abandoned lock (older than EVENT_LOCK_TTL) can be taken over.
+	 *
+	 * @param string $event_id Stripe event ID.
+	 * @return bool True when this request owns the lock.
+	 */
+	protected static function acquire_event_lock( $event_id ) {
+		$key = 'wc_wh_lock_' . md5( $event_id );
+
+		if ( add_option( $key, time(), '', 'no' ) ) {
+			return true;
+		}
+
+		$started = (int) get_option( $key );
+		if ( $started && ( time() - $started ) > self::EVENT_LOCK_TTL ) {
+			delete_option( $key );
+			return (bool) add_option( $key, time(), '', 'no' );
+		}
+
+		return false;
+	}
+
+	/**
+	 * Release the lock taken by acquire_event_lock().
+	 *
+	 * @param string $event_id Stripe event ID.
+	 */
+	protected static function release_event_lock( $event_id ) {
+		delete_option( 'wc_wh_lock_' . md5( $event_id ) );
+	}
+
+	/**
 	 * Handle Stripe Webhook Notification with Signature, Replay & Idempotency Controls (Requirements 1 & 2).
 	 *
 	 * Endpoint: POST /wp-json/wc-consult/v1/stripe-webhook
@@ -259,13 +305,44 @@ class WC_Gateway_Stripe implements WC_Gateway_Interface {
 			), 200 );
 		}
 
+		// Another delivery of this same event is being processed right now.
+		if ( ! self::acquire_event_lock( $event_id ) ) {
+			return new WP_REST_Response( array(
+				'received'   => true,
+				'idempotent' => true,
+				'message'    => 'Event is already being processed',
+			), 200 );
+		}
+
+		// Re-check after taking the lock (the other delivery may have just finished).
+		if ( self::is_event_processed( $event_id ) ) {
+			self::release_event_lock( $event_id );
+			return new WP_REST_Response( array(
+				'received'   => true,
+				'idempotent' => true,
+				'message'    => 'Event already processed',
+			), 200 );
+		}
+
 		$event_type = $event['type'] ?? '';
 
 		if ( 'checkout.session.completed' === $event_type ) {
 			$session = $event['data']['object'] ?? array();
 			$result  = self::process_completed_session( $session );
 			if ( is_wp_error( $result ) ) {
-				// Payment mismatch or invalid binding does not mark event as processed
+				// A mismatch is already recorded for the admin; retrying cannot fix it.
+				if ( 'wc_payment_mismatch' === $result->get_error_code() ) {
+					self::mark_event_processed( $event_id );
+					self::release_event_lock( $event_id );
+					return new WP_REST_Response( array(
+						'received' => true,
+						'flagged'  => true,
+						'code'     => $result->get_error_code(),
+					), 200 );
+				}
+
+				// Other failures (e.g. invalid binding) do not mark the event as processed
+				self::release_event_lock( $event_id );
 				return new WP_REST_Response( array(
 					'error'   => $result->get_error_message(),
 					'code'    => $result->get_error_code(),
@@ -275,6 +352,7 @@ class WC_Gateway_Stripe implements WC_Gateway_Interface {
 
 		// Mark event ID as processed
 		self::mark_event_processed( $event_id );
+		self::release_event_lock( $event_id );
 
 		return new WP_REST_Response( array( 'received' => true ), 200 );
 	}
@@ -577,12 +655,19 @@ class WC_Gateway_Stripe implements WC_Gateway_Interface {
 			$refund_params['metadata[refund_reason]'] = sanitize_text_field( $reason );
 		}
 
+		$refund_headers = array(
+			'Authorization'  => 'Bearer ' . $secret_key,
+			'Content-Type'   => 'application/x-www-form-urlencoded',
+			'Stripe-Version' => '2023-10-16',
+		);
+
+		// A full refund can only happen once, so a double click must not create a second one.
+		if ( empty( $amount ) ) {
+			$refund_headers['Idempotency-Key'] = 'wc-refund-' . absint( $post_id ) . '-' . md5( (string) $payment_intent );
+		}
+
 		$response = wp_remote_post( self::STRIPE_API_BASE . '/refunds', array(
-			'headers' => array(
-				'Authorization'  => 'Bearer ' . $secret_key,
-				'Content-Type'   => 'application/x-www-form-urlencoded',
-				'Stripe-Version' => '2023-10-16',
-			),
+			'headers' => $refund_headers,
 			'body'    => $refund_params,
 			'timeout' => 20,
 		) );

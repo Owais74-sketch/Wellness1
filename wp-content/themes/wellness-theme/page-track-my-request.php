@@ -14,6 +14,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// Noindex: tracking page should not appear in search results.
+add_filter( 'wp_robots', 'wp_robots_no_robots' );
+
 get_header();
 ?>
 

@@ -6,8 +6,15 @@
  * request ownership for consultants, and a nonce, setting Content-Type inline,
  * X-Content-Type-Options nosniff, and no-cache. Anyone else gets 403.
  *
+ * Phase 11 hardening:
+ * - Nonce and capability are checked BEFORE the request post is looked up,
+ *   so a logged-in user without access cannot learn which request IDs exist.
+ * - Output buffers are fully cleared before streaming the file.
+ * - Download filename extension comes from the verified MIME type, not the stored path.
+ * - Extra headers: private cache, no-referrer, noindex.
+ *
  * @package Wellness_Consult
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -58,6 +65,14 @@ class WC_Proof_Viewer {
 	}
 
 	/**
+	 * Generic "not found" used for every file-level failure (no detail leaked).
+	 */
+	private static function file_not_found() {
+		status_header( 404 );
+		wp_die( esc_html__( 'Proof file could not be loaded.', 'wellness-consult' ), 'Not Found', array( 'response' => 404 ) );
+	}
+
+	/**
 	 * Authenticated secure proof viewer.
 	 */
 	public static function handle_view_proof() {
@@ -70,11 +85,6 @@ class WC_Proof_Viewer {
 			status_header( 400 );
 			wp_die( esc_html__( 'Invalid request identifier.', 'wellness-consult' ), 'Bad Request', array( 'response' => 400 ) );
 		}
-		$request = get_post( $request_id );
-		if ( ! $request || 'wc_request' !== $request->post_type ) {
-			status_header( 404 );
-			wp_die( esc_html__( 'Consultation request not found.', 'wellness-consult' ), 'Not Found', array( 'response' => 404 ) );
-		}
 
 		// Verify Nonce
 		if ( ! isset( $_GET['_wpnonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['_wpnonce'] ), 'wc_view_proof_' . $request_id ) ) {
@@ -86,6 +96,13 @@ class WC_Proof_Viewer {
 		if ( ! current_user_can( 'wc_manage_requests' ) && ! current_user_can( 'wc_manage_assigned_requests' ) ) {
 			status_header( 403 );
 			wp_die( esc_html__( 'Forbidden: You do not have permissions to access consultation proofs.', 'wellness-consult' ), 'Forbidden', array( 'response' => 403 ) );
+		}
+
+		// Only now look up the request.
+		$request = get_post( $request_id );
+		if ( ! $request || 'wc_request' !== $request->post_type ) {
+			status_header( 404 );
+			wp_die( esc_html__( 'Consultation request not found.', 'wellness-consult' ), 'Not Found', array( 'response' => 404 ) );
 		}
 
 		// Consultant ownership check: If user is wc_consultant (and not full administrator)
@@ -128,43 +145,42 @@ class WC_Proof_Viewer {
 		}
 
 		if ( ! is_string( $relative_file ) || '' === $relative_file ) {
-			status_header( 404 );
-			wp_die( esc_html__( 'Proof file could not be loaded.', 'wellness-consult' ), 'Not Found', array( 'response' => 404 ) );
+			self::file_not_found();
 		}
 
 		// Path traversal defense
 		$relative_file = wp_normalize_path( $relative_file );
 		if ( '' === $relative_file || '/' === substr( $relative_file, 0, 1 ) || preg_match( '/^[A-Za-z]:\//', $relative_file ) || in_array( '..', explode( '/', $relative_file ), true ) ) {
-			status_header( 404 );
-			wp_die( esc_html__( 'Proof file could not be loaded.', 'wellness-consult' ), 'Not Found', array( 'response' => 404 ) );
+			self::file_not_found();
 		}
 		$base_dir  = realpath( WC_PROOFS_DIR );
 		$full_path = realpath( trailingslashit( WC_PROOFS_DIR ) . $relative_file );
 
 		if ( false === $full_path || false === $base_dir || 0 !== strpos( wp_normalize_path( $full_path ), trailingslashit( wp_normalize_path( $base_dir ) ) ) || ! is_file( $full_path ) || ! is_readable( $full_path ) ) {
-			status_header( 404 );
-			wp_die( esc_html__( 'Proof file could not be loaded.', 'wellness-consult' ), 'Not Found', array( 'response' => 404 ) );
+			self::file_not_found();
 		}
 
 		// Determine safe MIME type
 		$finfo = function_exists( 'finfo_open' ) ? finfo_open( FILEINFO_MIME_TYPE ) : false;
 		if ( false === $finfo ) {
-			status_header( 404 );
-			wp_die( esc_html__( 'Payment proof file could not be loaded.', 'wellness-consult' ), 'Not Found', array( 'response' => 404 ) );
+			self::file_not_found();
 		}
 		$mime_type = finfo_file( $finfo, $full_path );
 		finfo_close( $finfo );
 
-		if ( ! in_array( $mime_type, array( 'image/jpeg', 'image/png', 'application/pdf' ), true ) ) {
-			status_header( 404 );
-			wp_die( esc_html__( 'Proof file could not be loaded.', 'wellness-consult' ), 'Not Found', array( 'response' => 404 ) );
+		$allowed_types = array(
+			'image/jpeg'      => 'jpg',
+			'image/png'       => 'png',
+			'application/pdf' => 'pdf',
+		);
+		if ( ! isset( $allowed_types[ $mime_type ] ) ) {
+			self::file_not_found();
 		}
 
-		$extension = pathinfo( $full_path, PATHINFO_EXTENSION );
-		$display_filename = sprintf( 'proof-%d.%s', $request_id, $extension );
+		$display_filename = sprintf( 'proof-%d.%s', $request_id, $allowed_types[ $mime_type ] );
 
-		// Clean output buffer before streaming
-		if ( ob_get_level() ) {
+		// Clean every output buffer level before streaming
+		while ( ob_get_level() ) {
 			ob_end_clean();
 		}
 
@@ -174,9 +190,11 @@ class WC_Proof_Viewer {
 			header( 'Content-Disposition: inline; filename="' . $display_filename . '"' );
 			header( 'Content-Length: ' . filesize( $full_path ) );
 			header( 'X-Content-Type-Options: nosniff' );
-			header( 'Cache-Control: no-cache, no-store, must-revalidate, max-age=0' );
+			header( 'Cache-Control: private, no-cache, no-store, must-revalidate, max-age=0' );
 			header( 'Pragma: no-cache' );
 			header( 'Expires: 0' );
+			header( 'Referrer-Policy: no-referrer' );
+			header( 'X-Robots-Tag: noindex, nofollow, noarchive' );
 		}
 
 		readfile( $full_path );

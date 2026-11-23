@@ -38,7 +38,7 @@ if ( ! in_array( $default_theme_mode, array( 'dark', 'light' ), true ) ) {
 	<?php wp_head(); ?>
 </head>
 
-<body <?php body_class(); ?>>
+<body <?php body_class(); ?><?php if ( get_theme_mod( 'wellness_show_quick_exit', false ) ) echo ' data-quick-exit'; ?>>
 <?php wp_body_open(); ?>
 
 <a class="skip-link screen-reader-text" href="#primary">
@@ -57,7 +57,13 @@ if ( ! in_array( $default_theme_mode, array( 'dark', 'light' ), true ) ) {
 			<div class="container">
 				<div class="utility-notice">
 					<span class="pulse-dot" aria-hidden="true"></span>
-					<span><?php esc_html_e( 'Confidential & Private • For emergencies, call 911 / 112 immediately', 'wellness-theme' ); ?></span>
+					<?php
+					$topbar_default = wellness_consultations_enabled()
+						? __( 'Demo Consultation Booking • Worldwide Time Zone Support', 'wellness-theme' )
+						: __( 'Practical • Evidence-informed • Everyday Wellness', 'wellness-theme' );
+					$topbar_text    = get_theme_mod( 'wellness_topbar_text', $topbar_default );
+					?>
+					<span><?php echo esc_html( $topbar_text ); ?></span>
 				</div>
 
 				<div class="utility-actions">
@@ -123,7 +129,7 @@ if ( ! in_array( $default_theme_mode, array( 'dark', 'light' ), true ) ) {
 						<line x1="21" y1="21" x2="16.65" y2="16.65"></line>
 					</svg>
 					<label for="header-search-field" class="screen-reader-text"><?php esc_html_e( 'Search topics, articles, and questions', 'wellness-theme' ); ?></label>
-					<input type="search" id="header-search-field" placeholder="<?php esc_attr_e( 'Search questions, symptoms, articles...', 'wellness-theme' ); ?>" value="<?php echo get_search_query(); ?>" name="s" autocomplete="off" />
+					<input type="search" id="header-search-field" placeholder="<?php echo esc_attr( get_theme_mod( 'wellness_header_search_placeholder', __( 'Search questions, symptoms, articles...', 'wellness-theme' ) ) ); ?>" value="<?php echo get_search_query(); ?>" name="s" autocomplete="off" />
 					<button type="submit"><?php esc_html_e( 'Search', 'wellness-theme' ); ?></button>
 				</form>
 			</div>
@@ -135,7 +141,7 @@ if ( ! in_array( $default_theme_mode, array( 'dark', 'light' ), true ) ) {
 				<div class="mobile-nav-header">
 					<div class="brand-text">
 						<span class="brand-title"><?php bloginfo( 'name' ); ?></span>
-						<span class="brand-tagline"><?php esc_html_e( 'Confidential & Discreet', 'wellness-theme' ); ?></span>
+						<span class="brand-tagline"><?php echo esc_html( get_theme_mod( 'wellness_mobile_tagline', __( 'Everyday Wellness', 'wellness-theme' ) ) ); ?></span>
 					</div>
 					<button type="button" id="mobile-nav-close" class="mobile-nav-close" aria-label="<?php esc_attr_e( 'Close navigation menu', 'wellness-theme' ); ?>">
 						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -177,5 +183,15 @@ if ( ! in_array( $default_theme_mode, array( 'dark', 'light' ), true ) ) {
 		</div>
 
 	</header><!-- #masthead -->
+
+	<?php
+	$_demo_on   = get_theme_mod( 'wellness_demo_notice_on', true );
+	$_demo_text = get_theme_mod( 'wellness_demo_notice_text', __( 'Portfolio demo — content and payments are for demonstration only. No real consultations occur.', 'wellness-theme' ) );
+	if ( $_demo_on && $_demo_text ) :
+	?>
+	<div class="demo-notice-bar" role="status">
+		<span><?php echo esc_html( $_demo_text ); ?></span>
+	</div>
+	<?php endif; ?>
 
 	<div id="content" class="site-content">

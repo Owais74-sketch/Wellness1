@@ -27,9 +27,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 							<?php dynamic_sidebar( 'footer-1' ); ?>
 						<?php else : ?>
 							<h4><?php bloginfo( 'name' ); ?></h4>
-							<p><?php echo esc_html( wellness_footer_about_text() ); ?></p>
+							<p><?php echo wp_kses_post( wellness_footer_about_text() ); ?></p>
 							<p class="text-xs text-muted" style="margin-top:0.5rem;">
-								<em><?php esc_html_e( 'Private, non-judgmental guidance for individuals and couples worldwide.', 'wellness-theme' ); ?></em>
+								<em><?php echo esc_html( get_theme_mod( 'wellness_footer_col1_subtext', __( 'Private, non-judgmental education for adults worldwide.', 'wellness-theme' ) ) ); ?></em>
 							</p>
 						<?php endif; ?>
 					</div>
@@ -39,7 +39,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<?php if ( is_active_sidebar( 'footer-2' ) ) : ?>
 							<?php dynamic_sidebar( 'footer-2' ); ?>
 						<?php else : ?>
-							<h4><?php esc_html_e( 'Explore & Consult', 'wellness-theme' ); ?></h4>
+							<h4><?php echo wellness_consultations_enabled() ? esc_html__( 'Explore & Consult', 'wellness-theme' ) : esc_html__( 'Explore & Learn', 'wellness-theme' ); ?></h4>
 							<?php
 							if ( has_nav_menu( 'footer' ) ) {
 								wp_nav_menu( array(
@@ -54,9 +54,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 									<li><a href="<?php echo esc_url( home_url( '/' ) ); ?>"><?php esc_html_e( 'Home', 'wellness-theme' ); ?></a></li>
 									<li><a href="<?php echo esc_url( home_url( '/articles/' ) ); ?>"><?php esc_html_e( 'Articles & Guides', 'wellness-theme' ); ?></a></li>
 									<li><a href="<?php echo esc_url( home_url( '/myths-vs-facts/' ) ); ?>"><?php esc_html_e( 'Myths vs Facts', 'wellness-theme' ); ?></a></li>
-									<li><a href="<?php echo esc_url( home_url( '/ask-a-question/' ) ); ?>"><?php esc_html_e( 'Ask Anonymously (Free)', 'wellness-theme' ); ?></a></li>
-									<li><a href="<?php echo esc_url( home_url( '/book-consultation/' ) ); ?>"><strong><?php esc_html_e( 'Book Consultation', 'wellness-theme' ); ?></strong></a></li>
-									<li><a href="<?php echo esc_url( home_url( '/track-my-request/' ) ); ?>"><?php esc_html_e( 'Track My Request', 'wellness-theme' ); ?></a></li>
+									<?php if ( wellness_questions_enabled() ) : ?>
+										<li><a href="<?php echo esc_url( home_url( '/ask-a-question/' ) ); ?>"><?php esc_html_e( 'Ask Anonymously (Free)', 'wellness-theme' ); ?></a></li>
+									<?php endif; ?>
+									<?php if ( wellness_consultations_enabled() ) : ?>
+										<li><a href="<?php echo esc_url( home_url( '/book-consultation/' ) ); ?>"><strong><?php esc_html_e( 'Book Consultation', 'wellness-theme' ); ?></strong></a></li>
+										<li><a href="<?php echo esc_url( home_url( '/track-my-request/' ) ); ?>"><?php esc_html_e( 'Track My Request', 'wellness-theme' ); ?></a></li>
+									<?php endif; ?>
 								</ul>
 								<?php
 							}
@@ -69,13 +73,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<?php if ( is_active_sidebar( 'footer-3' ) ) : ?>
 							<?php dynamic_sidebar( 'footer-3' ); ?>
 						<?php else : ?>
-							<h4><?php esc_html_e( 'Health Categories', 'wellness-theme' ); ?></h4>
+							<h4><?php echo esc_html( get_theme_mod( 'wellness_footer_col3_heading', __( 'Health Categories', 'wellness-theme' ) ) ); ?></h4>
 							<ul class="footer-links">
-								<li><a href="<?php echo esc_url( home_url( '/category/intimacy/' ) ); ?>"><?php esc_html_e( 'Intimacy & Relationships', 'wellness-theme' ); ?></a></li>
-								<li><a href="<?php echo esc_url( home_url( '/category/mens-health/' ) ); ?>"><?php esc_html_e( "Men's Health", 'wellness-theme' ); ?></a></li>
-								<li><a href="<?php echo esc_url( home_url( '/category/womens-health/' ) ); ?>"><?php esc_html_e( "Women's Health", 'wellness-theme' ); ?></a></li>
-								<li><a href="<?php echo esc_url( home_url( '/category/lifestyle/' ) ); ?>"><?php esc_html_e( 'Lifestyle & Wellness', 'wellness-theme' ); ?></a></li>
-								<li><a href="<?php echo esc_url( home_url( '/about/' ) ); ?>"><?php esc_html_e( 'About Our Consultant', 'wellness-theme' ); ?></a></li>
+								<li><a href="<?php echo esc_url( home_url( '/category/nutrition-eating/' ) ); ?>"><?php esc_html_e( 'Nutrition &amp; Eating', 'wellness-theme' ); ?></a></li>
+								<li><a href="<?php echo esc_url( home_url( '/category/fitness-movement/' ) ); ?>"><?php esc_html_e( 'Fitness &amp; Movement', 'wellness-theme' ); ?></a></li>
+								<li><a href="<?php echo esc_url( home_url( '/category/sleep-recovery/' ) ); ?>"><?php esc_html_e( 'Sleep &amp; Recovery', 'wellness-theme' ); ?></a></li>
+								<li><a href="<?php echo esc_url( home_url( '/category/stress-mind/' ) ); ?>"><?php esc_html_e( 'Stress &amp; Mind', 'wellness-theme' ); ?></a></li>
+								<li><a href="<?php echo esc_url( home_url( '/category/myths-vs-facts/' ) ); ?>"><?php esc_html_e( 'Myths vs Facts Topics', 'wellness-theme' ); ?></a></li>
 							</ul>
 						<?php endif; ?>
 					</div>
@@ -99,7 +103,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 								<ul class="footer-links">
 									<li><a href="<?php echo esc_url( home_url( '/privacy-policy/' ) ); ?>"><?php esc_html_e( 'Privacy Policy (GDPR/CCPA)', 'wellness-theme' ); ?></a></li>
 									<li><a href="<?php echo esc_url( home_url( '/terms-of-service/' ) ); ?>"><?php esc_html_e( 'Terms & Conditions (18+)', 'wellness-theme' ); ?></a></li>
-									<li><a href="<?php echo esc_url( home_url( '/refund-policy/' ) ); ?>"><?php esc_html_e( 'Refund & Reschedule Policy', 'wellness-theme' ); ?></a></li>
+									<?php if ( wellness_consultations_enabled() ) : ?>
+										<li><a href="<?php echo esc_url( home_url( '/refund-policy/' ) ); ?>"><?php esc_html_e( 'Refund & Reschedule Policy', 'wellness-theme' ); ?></a></li>
+									<?php endif; ?>
 									<li><a href="<?php echo esc_url( home_url( '/medical-disclaimer/' ) ); ?>"><?php esc_html_e( 'Medical Disclaimer', 'wellness-theme' ); ?></a></li>
 									<li><a href="<?php echo esc_url( home_url( '/contact/' ) ); ?>"><?php esc_html_e( 'Contact & Support', 'wellness-theme' ); ?></a></li>
 								</ul>
@@ -126,7 +132,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 							</svg>
 							<?php esc_html_e( 'Important Notice:', 'wellness-theme' ); ?>
 						</strong>
-						<?php echo esc_html( wellness_get_medical_disclaimer_text() ); ?>
+						<?php echo wp_kses_post( wellness_get_medical_disclaimer_text() ); ?>
 					</p>
 
 					<div class="emergency-alert-strip">
@@ -135,7 +141,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 							<line x1="12" y1="8" x2="12" y2="12"></line>
 							<line x1="12" y1="16" x2="12.01" y2="16"></line>
 						</svg>
-						<span><?php esc_html_e( 'This website does not provide emergency medical services. If you are experiencing acute medical symptoms or distress, please reach out to your local emergency services (911, 112, 999) immediately.', 'wellness-theme' ); ?></span>
+						<?php
+						$footer_emergency = get_theme_mod(
+							'wellness_footer_emergency',
+							__( 'This website does not provide emergency medical services. If you are experiencing acute medical symptoms or distress, please reach out to your local emergency medical services or nearest hospital immediately.', 'wellness-theme' )
+						);
+						?>
+						<span><?php echo wp_kses_post( $footer_emergency ); ?></span>
 					</div>
 				</div>
 			</div>
@@ -150,7 +162,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 				<div class="footer-bottom-actions">
 					<a href="#page" id="back-to-top" class="back-to-top" aria-label="<?php esc_attr_e( 'Back to top of page', 'wellness-theme' ); ?>">
-						<span><?php esc_html_e( 'Back to Top', 'wellness-theme' ); ?></span>
+						<span><?php echo esc_html( get_theme_mod( 'wellness_footer_backtotop', __( 'Back to Top', 'wellness-theme' ) ) ); ?></span>
 						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 							<polyline points="18 15 12 9 6 15"></polyline>
 						</svg>

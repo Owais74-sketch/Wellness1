@@ -5,3 +5,6 @@ wp-content/cache/
 .env
 node_modules/
 *.zip
+
+# Demo credentials
+docs/demo-credentials.md

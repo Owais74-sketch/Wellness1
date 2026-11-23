@@ -30,6 +30,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<line x1="12" y1="8" x2="12" y2="12"></line>
 			<line x1="12" y1="16" x2="12.01" y2="16"></line>
 		</svg>
-		<span><?php esc_html_e( 'Emergency Note: If you or someone you know is in acute medical distress, please contact your local emergency services (e.g. 911 / 112) immediately.', 'wellness-theme' ); ?></span>
+		<span><?php esc_html_e( 'Emergency Note: If you or someone you know is in acute medical distress, please contact your local emergency medical services or nearest hospital immediately.', 'wellness-theme' ); ?></span>
 	</div>
 </div>

@@ -5,8 +5,16 @@
  * Implements endpoints for Stripe Webhook, PayPal Webhook,
  * and PayPal Return Capture with one-time token verification (FR-8, FR-12).
  *
+ * Phase 11 hardening:
+ * - The "already captured" shortcut no longer hands out a confirmation token
+ *   (it let anyone read a paid request's details by guessing its numeric ID).
+ *   It now just sends the patient to the Track My Request page.
+ * - Return tokens keep their original letter case (sanitize_key lowercased them,
+ *   which only worked by accident on case-insensitive database lookups).
+ * - A return URL that is opened twice no longer asks PayPal to capture twice.
+ *
  * @package Wellness_Consult
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -55,13 +63,26 @@ class WC_REST_API {
 	}
 
 	/**
+	 * Clean a return token while keeping its letter case.
+	 *
+	 * @param mixed $value Raw request parameter.
+	 * @return string
+	 */
+	protected static function clean_token( $value ) {
+		if ( ! is_string( $value ) ) {
+			return '';
+		}
+		return substr( preg_replace( '/[^A-Za-z0-9]/', '', $value ), 0, 64 );
+	}
+
+	/**
 	 * Handle return from PayPal approval flow with one-time token verification (Requirements 4 & 5).
 	 *
 	 * @param WP_REST_Request $request
 	 */
 	public static function handle_paypal_return( $request ) {
 		$post_id  = absint( $request->get_param( 'request_id' ) );
-		$token    = sanitize_key( $request->get_param( 'token' ) );
+		$token    = self::clean_token( $request->get_param( 'token' ) );
 
 		if ( empty( $post_id ) || empty( $token ) ) {
 			wp_die( esc_html__( 'Forbidden: Missing return request identification or token.', 'wellness-consult' ), 'Forbidden', array( 'response' => 403 ) );
@@ -71,22 +92,11 @@ class WC_REST_API {
 		$confirm_data = get_transient( 'wc_confirm_' . $token );
 
 		if ( empty( $confirm_data ) || ! is_array( $confirm_data ) || (int) ( $confirm_data['request_id'] ?? 0 ) !== $post_id ) {
-			// If already captured previously (e.g. browser refresh), redirect safely without re-capturing
+			// Already captured earlier (e.g. the link was opened again after the token expired):
+			// show no request data and no new token, just point the patient to Track My Request.
 			$already_captured = get_post_meta( $post_id, '_wc_paypal_captured', true );
 			if ( $already_captured && WC_Status::STATUS_PAID_AWAITING_SCHEDULING === get_post_meta( $post_id, '_wc_status', true ) ) {
-				$token = wp_generate_password( 32, false, false );
-				$confirm_data = array(
-					'request_id'   => $post_id,
-					'reference_id' => get_post_meta( $post_id, '_wc_reference_id', true ),
-					'status'       => get_post_meta( $post_id, '_wc_status', true ),
-					'fee_usd'      => get_post_meta( $post_id, '_wc_fee_usd', true ),
-					'name'         => get_post_meta( $post_id, '_wc_name', true ),
-					'consult_mode' => get_post_meta( $post_id, '_wc_consult_mode', true ),
-					'type_name'    => get_post_meta( $post_id, '_wc_type_name', true ),
-				);
-				set_transient( 'wc_confirm_' . $token, $confirm_data, 900 );
-				$redirect_to = add_query_arg( array( 'wc_confirmed' => 1, 'token' => $token ), home_url( '/book-consultation/' ) );
-				wp_safe_redirect( $redirect_to );
+				wp_safe_redirect( home_url( '/track-my-request/' ) );
 				exit;
 			}
 
@@ -98,9 +108,11 @@ class WC_REST_API {
 
 		if ( ! empty( $order_id ) ) {
 			// Capture only once (Requirement 5)
-			$capture = WC_Gateway_PayPal::capture_order( $order_id, $post_id );
-			if ( is_wp_error( $capture ) ) {
-				wp_die( esc_html( $capture->get_error_message() ), 'Payment verification failed', array( 'response' => 400 ) );
+			if ( ! get_post_meta( $post_id, '_wc_paypal_captured', true ) ) {
+				$capture = WC_Gateway_PayPal::capture_order( $order_id, $post_id );
+				if ( is_wp_error( $capture ) ) {
+					wp_die( esc_html( $capture->get_error_message() ), 'Payment verification failed', array( 'response' => 400 ) );
+				}
 			}
 		} else {
 			wp_die( esc_html__( 'The payment order could not be verified.', 'wellness-consult' ), 'Payment verification failed', array( 'response' => 400 ) );

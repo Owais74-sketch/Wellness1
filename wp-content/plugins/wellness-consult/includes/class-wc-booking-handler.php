@@ -94,6 +94,10 @@ class WC_Booking_Handler {
 			return;
 		}
 
+		if ( ! get_option( 'wc_consultations_enabled', false ) ) {
+			wp_die( esc_html__( 'Consultations are not currently available.', 'wellness-consult' ), 'Service Unavailable', array( 'response' => 503 ) );
+		}
+
 		$stage = isset( $_POST['wc_booking_stage'] ) ? sanitize_key( wp_unslash( $_POST['wc_booking_stage'] ) ) : '';
 		if ( ! in_array( $stage, array( 'create_draft', 'submit_manual', 'create_checkout' ), true ) ) {
 			wp_die( esc_html__( 'Invalid booking action.', 'wellness-consult' ), 'Bad Request', array( 'response' => 400 ) );
@@ -105,30 +109,30 @@ class WC_Booking_Handler {
 		}
 
 		$draft_token = ! empty( $_COOKIE['wc_booking_draft'] ) ? sanitize_text_field( wp_unslash( $_COOKIE['wc_booking_draft'] ) ) : '';
-		if ( 'create_draft' !== $stage ) {
+		$draft_id    = 0;
+		if ( ! empty( $draft_token ) ) {
 			$draft_id = self::find_browser_draft( $draft_token );
-			if ( ! $draft_id || empty( $_POST['wc_draft_nonce'] ) || ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST['wc_draft_nonce'] ) ), 'wc_booking_draft_' . $draft_token ) ) {
-				wp_die( esc_html__( 'This booking draft is no longer available in this browser. Please start again.', 'wellness-consult' ), 'Forbidden', array( 'response' => 403 ) );
-			}
-			$draft_created = absint( get_post_meta( $draft_id, '_wc_draft_created_at', true ) );
-			if ( $draft_created && time() - $draft_created >= DAY_IN_SECONDS ) {
-				foreach ( (array) get_post_meta( $draft_id, '_wc_proof_history', true ) as $proof ) {
-					if ( ! empty( $proof['relative_path'] ) ) {
-						WC_Upload_Handler::delete_proof( $proof['relative_path'] );
+			if ( $draft_id ) {
+				$draft_created = absint( get_post_meta( $draft_id, '_wc_draft_created_at', true ) );
+				if ( $draft_created && time() - $draft_created >= DAY_IN_SECONDS ) {
+					foreach ( (array) get_post_meta( $draft_id, '_wc_proof_history', true ) as $proof ) {
+						if ( ! empty( $proof['relative_path'] ) ) {
+							WC_Upload_Handler::delete_proof( $proof['relative_path'] );
+						}
 					}
+					$proof_file = get_post_meta( $draft_id, '_wc_proof_file', true );
+					if ( $proof_file ) {
+						WC_Upload_Handler::delete_proof( $proof_file );
+					}
+					$idempotency_hash = get_post_meta( $draft_id, '_wc_draft_idempotency_hash', true );
+					if ( $idempotency_hash ) {
+						delete_option( 'wc_draft_idem_' . sanitize_key( $idempotency_hash ) );
+						delete_transient( 'wc_draft_idem_' . sanitize_key( $idempotency_hash ) );
+					}
+					wp_delete_post( $draft_id, true );
+					self::clear_browser_draft_cookie();
+					$draft_id = 0;
 				}
-				$proof_file = get_post_meta( $draft_id, '_wc_proof_file', true );
-				if ( $proof_file ) {
-					WC_Upload_Handler::delete_proof( $proof_file );
-				}
-				$idempotency_hash = get_post_meta( $draft_id, '_wc_draft_idempotency_hash', true );
-				if ( $idempotency_hash ) {
-					delete_option( 'wc_draft_idem_' . sanitize_key( $idempotency_hash ) );
-					delete_transient( 'wc_draft_idem_' . sanitize_key( $idempotency_hash ) );
-				}
-				wp_delete_post( $draft_id, true );
-				self::clear_browser_draft_cookie();
-				wp_die( esc_html__( 'This booking draft has expired. Please start a new booking.', 'wellness-consult' ), 'Draft expired', array( 'response' => 410 ) );
 			}
 		}
 
@@ -418,8 +422,17 @@ class WC_Booking_Handler {
 			return;
 		}
 
-		if ( ! $post_id || '1' !== (string) get_post_meta( $post_id, '_wc_is_draft', true ) ) {
-			wp_die( esc_html__( 'This booking draft has already been submitted or expired.', 'wellness-consult' ), 'Bad Request', array( 'response' => 400 ) );
+		if ( ! $post_id ) {
+			$post_id = wp_insert_post( array(
+				'post_title'  => 'Booking Request',
+				'post_type'   => 'wc_request',
+				'post_status' => ( 'create_checkout' === $stage ) ? 'draft' : 'publish',
+			), true );
+			if ( is_wp_error( $post_id ) || ! $post_id ) {
+				self::set_flash( array( esc_html__( 'We could not save your booking details. Please try again.', 'wellness-consult' ) ), $input_data );
+				self::safe_redirect_and_exit( wp_get_referer() ?: home_url( '/book-consultation/' ) );
+				return;
+			}
 		}
 
 		self::save_request_details( $post_id, compact( 'type_id', 'type_name', 'consult_mode', 'fee_usd', 'name', 'age', 'gender', 'country', 'timezone', 'phone', 'email', 'concern', 'message', 'pref_window', 'ip_hash' ) );

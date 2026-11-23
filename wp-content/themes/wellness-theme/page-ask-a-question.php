@@ -23,7 +23,7 @@ get_header();
 			<span class="badge badge-secondary" style="margin-bottom: 0.5rem;"><?php esc_html_e( 'Free • Anonymous • Private', 'wellness-theme' ); ?></span>
 			<h1><?php esc_html_e( 'Ask a Question Anonymously', 'wellness-theme' ); ?></h1>
 			<p class="text-muted" style="max-width: 620px; margin: 0 auto;">
-				<?php esc_html_e( 'Have a private question about intimacy, physical symptoms, or emotional connection? Ask without sharing your identity.', 'wellness-theme' ); ?>
+				<?php esc_html_e( 'Have a question about nutrition, sleep, fitness or stress? Ask anonymously — no account required.', 'wellness-theme' ); ?>
 			</p>
 		</header>
 
@@ -33,7 +33,11 @@ get_header();
 		<?php else : ?>
 			<div class="ask-card" style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:2rem; text-align:center; margin-bottom:3rem;">
 				<p><?php esc_html_e( 'Anonymous questions are opening soon.', 'wellness-theme' ); ?></p>
-				<a href="<?php echo esc_url( home_url( '/book-consultation/' ) ); ?>" class="btn btn-outline btn-pill"><?php esc_html_e( 'Book a Private Consultation', 'wellness-theme' ); ?></a>
+				<?php if ( wellness_consultations_enabled() ) : ?>
+					<a href="<?php echo esc_url( home_url( '/book-consultation/' ) ); ?>" class="btn btn-outline btn-pill"><?php esc_html_e( 'Book a Private Consultation', 'wellness-theme' ); ?></a>
+				<?php else : ?>
+					<a href="<?php echo esc_url( home_url( '/articles/' ) ); ?>" class="btn btn-outline btn-pill"><?php esc_html_e( 'Read Our Articles', 'wellness-theme' ); ?></a>
+				<?php endif; ?>
 			</div>
 		<?php endif; ?>
 

@@ -37,7 +37,7 @@ get_header();
 			<!-- Inline Search Refinement Form -->
 			<div style="max-width: 500px; margin: 1.5rem auto 0;">
 				<form role="search" method="get" class="search-form-wrap" action="<?php echo esc_url( home_url( '/' ) ); ?>">
-					<input type="search" placeholder="<?php esc_attr_e( 'Try another search term...', 'wellness-theme' ); ?>" value="<?php echo get_search_query(); ?>" name="s" autocomplete="off" />
+					<input type="search" placeholder="<?php echo esc_attr( get_theme_mod( 'wellness_search_placeholder', __( 'Try another search term...', 'wellness-theme' ) ) ); ?>" value="<?php echo get_search_query(); ?>" name="s" autocomplete="off" />
 					<button type="submit"><?php esc_html_e( 'Search', 'wellness-theme' ); ?></button>
 				</form>
 			</div>
@@ -64,13 +64,24 @@ get_header();
 		<?php else : ?>
 			<div class="empty-state-card text-center" style="background:var(--surface); border:1px solid var(--border); border-radius: var(--radius-lg); padding: 3rem; max-width: 600px; margin: 2rem auto;">
 				<div style="font-size: 2.5rem; margin-bottom: 1rem;" aria-hidden="true">🔍</div>
-				<h3><?php esc_html_e( 'No Matches Found', 'wellness-theme' ); ?></h3>
+				<h3><?php echo esc_html( get_theme_mod( 'wellness_no_results_title', __( 'No Matches Found', 'wellness-theme' ) ) ); ?></h3>
 				<p class="text-muted" style="margin-bottom: 1.5rem;">
-					<?php esc_html_e( 'We could not find anything matching your search term. You can ask our doctor a confidential question directly, or browse by health category.', 'wellness-theme' ); ?>
+					<?php
+					if ( wellness_questions_enabled() ) {
+						esc_html_e( 'We could not find anything matching your search term. You can ask an anonymous question, or browse our health categories.', 'wellness-theme' );
+					} else {
+						esc_html_e( 'We could not find anything matching your search term. Try searching for different keywords, or browse our articles by category.', 'wellness-theme' );
+					}
+					?>
 				</p>
 				<div style="display:flex; justify-content:center; gap: 0.75rem; flex-wrap:wrap;">
-					<a href="<?php echo esc_url( home_url( '/ask-a-question/' ) ); ?>" class="btn btn-secondary btn-pill">
-						<?php esc_html_e( 'Ask Anonymously', 'wellness-theme' ); ?>
+					<?php if ( wellness_questions_enabled() ) : ?>
+						<a href="<?php echo esc_url( home_url( '/ask-a-question/' ) ); ?>" class="btn btn-secondary btn-pill">
+							<?php esc_html_e( 'Ask Anonymously', 'wellness-theme' ); ?>
+						</a>
+					<?php endif; ?>
+					<a href="<?php echo esc_url( home_url( '/articles/' ) ); ?>" class="btn btn-secondary btn-pill">
+						<?php esc_html_e( 'Browse Articles', 'wellness-theme' ); ?>
 					</a>
 					<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="btn btn-outline btn-pill">
 						<?php esc_html_e( 'Back to Home', 'wellness-theme' ); ?>

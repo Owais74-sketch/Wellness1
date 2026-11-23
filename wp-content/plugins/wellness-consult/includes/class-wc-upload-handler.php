@@ -5,8 +5,15 @@
  * Implements Rule 2: Secure screenshot upload, MIME verification, image re-encoding,
  * and protected .htaccess storage.
  *
+ * Phase 11 hardening:
+ * - Size is measured from the real temp file, not the client-reported value.
+ * - Images with extreme pixel dimensions are rejected (memory-exhaustion protection).
+ * - Re-encoding is mandatory: if it fails the upload is rejected, the original
+ *   (unsanitised) file is never stored.
+ * - The re-encoded result is validated again; partial files are deleted on failure.
+ *
  * @package Wellness_Consult
- * @version 1.0.0
+ * @version 1.1.0
  */
 
 defined( 'ABSPATH' ) || exit;
@@ -24,6 +31,12 @@ class WC_Upload_Handler {
 	);
 
 	/**
+	 * Maximum image side (px) and total pixels accepted.
+	 */
+	const MAX_IMAGE_SIDE   = 8000;
+	const MAX_IMAGE_PIXELS = 40000000;
+
+	/**
 	 * Ensure the protected wc-proofs directory and security files exist.
 	 *
 	 * @param string $sub_dir Optional YYYY/MM subfolder.
@@ -39,7 +52,7 @@ class WC_Upload_Handler {
 		// Ensure root .htaccess exists
 		$htaccess_file = $base_dir . '.htaccess';
 		if ( ! file_exists( $htaccess_file ) ) {
-			$htaccess_content = "# Apache 2.4+\n<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n\n# Apache 2.2 fallback\n<IfModule !mod_authz_core.c>\n    Deny from all\n</IfModule>\n";
+			$htaccess_content = "# Apache 2.4+\n<IfModule mod_authz_core.c>\n    Require all denied\n</IfModule>\n\n# Apache 2.2 fallback\n<IfModule !mod_authz_core.c>\n    Deny from all\n</IfModule>\n\nOptions -Indexes\n";
 			file_put_contents( $htaccess_file, $htaccess_content );
 		}
 
@@ -71,7 +84,7 @@ class WC_Upload_Handler {
 	 * @return array|WP_Error Array with path, hash, and metadata on success, WP_Error on failure.
 	 */
 	public static function handle_upload( $file_array ) {
-		if ( empty( $file_array ) || ! is_array( $file_array ) || ! isset( $file_array['tmp_name'] ) ) {
+		if ( empty( $file_array ) || ! is_array( $file_array ) || ! isset( $file_array['tmp_name'], $file_array['error'], $file_array['name'] ) ) {
 			return new WP_Error( 'wc_upload_empty', esc_html__( 'Please select a payment proof screenshot to upload.', 'wellness-consult' ) );
 		}
 
@@ -87,11 +100,15 @@ class WC_Upload_Handler {
 			}
 		}
 
-		$tmp_path  = $file_array['tmp_name'];
-		$file_size = (int) $file_array['size'];
-		$raw_name  = sanitize_file_name( $file_array['name'] );
+		$tmp_path = $file_array['tmp_name'];
+		$raw_name = sanitize_file_name( $file_array['name'] );
 
-		// 1. Strict Size Check
+		if ( ! is_string( $tmp_path ) || '' === $tmp_path || ! is_file( $tmp_path ) ) {
+			return new WP_Error( 'wc_upload_failed', esc_html__( 'File upload error occurred. Please try again.', 'wellness-consult' ) );
+		}
+
+		// 1. Strict Size Check (measured on the real temp file)
+		$file_size = (int) filesize( $tmp_path );
 		if ( $file_size <= 0 || $file_size > WC_MAX_UPLOAD_SIZE ) {
 			return new WP_Error( 'wc_upload_oversized', sprintf( esc_html__( 'The uploaded proof exceeds the maximum allowed limit of %s MB.', 'wellness-consult' ), round( WC_MAX_UPLOAD_SIZE / ( 1024 * 1024 ) ) ) );
 		}
@@ -117,7 +134,7 @@ class WC_Upload_Handler {
 
 		// Verify extension matches real MIME
 		$expected_mime = self::ALLOWED_MIMES[ $ext ];
-		if ( $real_mime !== $expected_mime && ! ( 'jpg' === $ext && 'image/jpeg' === $real_mime ) ) {
+		if ( $real_mime !== $expected_mime ) {
 			return new WP_Error( 'wc_upload_mime_mismatch', esc_html__( 'File extension does not match its actual content type.', 'wellness-consult' ) );
 		}
 
@@ -130,7 +147,7 @@ class WC_Upload_Handler {
 		$target_dir   = self::get_storage_dir( $year_month );
 		$random_token = wp_generate_password( 32, false );
 
-		// 4. Image Security & Re-encoding (strips EXIF, malicious comments, and scripts)
+		// 4. Image Security & Re-encoding (strips scripts and hidden payloads)
 		if ( in_array( $real_mime, array( 'image/jpeg', 'image/png' ), true ) ) {
 			$img_info = @getimagesize( $tmp_path );
 			if ( false === $img_info || empty( $img_info[0] ) || empty( $img_info[1] ) ) {
@@ -142,24 +159,37 @@ class WC_Upload_Handler {
 				return new WP_Error( 'wc_upload_image_mismatch', esc_html__( 'Image metadata does not match permitted formats.', 'wellness-consult' ) );
 			}
 
-			$canonical_ext = ( 'image/png' === $real_mime ) ? 'png' : 'jpg';
+			// Reject extreme dimensions (a small file can decode to gigabytes of memory)
+			if ( $img_info[0] > self::MAX_IMAGE_SIDE || $img_info[1] > self::MAX_IMAGE_SIDE || ( $img_info[0] * $img_info[1] ) > self::MAX_IMAGE_PIXELS ) {
+				return new WP_Error( 'wc_upload_image_too_large', esc_html__( 'The image dimensions are too large. Please upload a normal screenshot.', 'wellness-consult' ) );
+			}
+
+			$canonical_ext   = ( 'image/png' === $real_mime ) ? 'png' : 'jpg';
 			$stored_filename = $random_token . '.' . $canonical_ext;
 			$destination     = $target_dir . $stored_filename;
 
-			// Re-encode through WordPress image editor
+			// Re-encode through WordPress image editor (mandatory)
+			wp_raise_memory_limit( 'image' );
 			$editor = wp_get_image_editor( $tmp_path );
-			if ( ! is_wp_error( $editor ) ) {
-				$save_status = $editor->save( $destination );
-				if ( is_wp_error( $save_status ) ) {
-					// Fallback to move if editor fails to save
-					if ( ! @move_uploaded_file( $tmp_path, $destination ) && ! @copy( $tmp_path, $destination ) ) {
-						return new WP_Error( 'wc_upload_storage_failed', esc_html__( 'Failed to write proof file to secure storage.', 'wellness-consult' ) );
-					}
-				}
-			} else {
-				// If WP Image Editor cannot parse, reject to be safe
+			if ( is_wp_error( $editor ) ) {
 				return new WP_Error( 'wc_upload_unreadable_image', esc_html__( 'Unable to process and sanitize image proof.', 'wellness-consult' ) );
 			}
+
+			$save_status = $editor->save( $destination );
+			if ( is_wp_error( $save_status ) || ! is_file( $destination ) ) {
+				if ( is_file( $destination ) ) {
+					@unlink( $destination );
+				}
+				return new WP_Error( 'wc_upload_storage_failed', esc_html__( 'Failed to write proof file to secure storage.', 'wellness-consult' ) );
+			}
+
+			// Validate the re-encoded output as well
+			$out_info = @getimagesize( $destination );
+			if ( false === $out_info || ! in_array( $out_info['mime'], array( 'image/jpeg', 'image/png' ), true ) ) {
+				@unlink( $destination );
+				return new WP_Error( 'wc_upload_unreadable_image', esc_html__( 'Unable to process and sanitize image proof.', 'wellness-consult' ) );
+			}
+			$real_mime = $out_info['mime'];
 		} elseif ( 'application/pdf' === $real_mime ) {
 			// Verify PDF Header (%PDF-)
 			$handle = @fopen( $tmp_path, 'rb' );

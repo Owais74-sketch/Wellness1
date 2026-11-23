@@ -9,6 +9,8 @@
  * HttpOnly cookie) then lets them see status, appointment details and, when a
  * payment proof was rejected, upload a replacement.
  *
+ * Phase 11: failed lookups are also limited per Reference ID (across all IPs).
+ *
  * @package Wellness_Consult
  */
 
@@ -19,6 +21,7 @@ class WC_Track_Request {
 	const COOKIE            = 'wc_track_session';
 	const SESSION_TTL       = 1800; // 30 minutes, refreshed on each page view.
 	const MAX_FAILED_LOOKUP = 5;    // Failed lookups per IP before a 15 minute lock.
+	const MAX_FAILED_PER_REF = 10;  // Failed lookups per Reference ID (all IPs) before a 15 minute lock.
 	const MAX_PROOF_FILES   = 6;    // Original proof plus up to five replacements.
 
 	/**
@@ -191,6 +194,10 @@ class WC_Track_Request {
 	 * Verify Reference ID + email and start a session.
 	 */
 	public static function handle_lookup() {
+		if ( ! get_option( 'wc_consultations_enabled', false ) ) {
+			wp_die( esc_html__( 'Consultations are not currently available.', 'wellness-consult' ), 'Service Unavailable', array( 'response' => 503 ) );
+		}
+
 		$return_url = self::get_return_url();
 
 		if ( ! isset( $_POST['wc_track_lookup_nonce'] ) || ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST['wc_track_lookup_nonce'] ) ), 'wc_track_lookup' ) ) {
@@ -207,6 +214,12 @@ class WC_Track_Request {
 
 		if ( '' === $ref || '' === $email ) {
 			self::redirect( add_query_arg( 'wc_track_notice', 'missing', $return_url ) );
+		}
+
+		// Per-reference limit across all IPs (stops distributed guessing of one request).
+		$ref_fail_key = 'wc_track_rfail_' . md5( $ref );
+		if ( (int) get_transient( $ref_fail_key ) >= self::MAX_FAILED_PER_REF ) {
+			self::redirect( add_query_arg( 'wc_track_notice', 'rate', $return_url ) );
 		}
 
 		$ids        = get_posts( array(
@@ -226,6 +239,7 @@ class WC_Track_Request {
 
 		if ( ! $matches ) {
 			set_transient( $fail_key, (int) get_transient( $fail_key ) + 1, 15 * MINUTE_IN_SECONDS );
+			set_transient( $ref_fail_key, (int) get_transient( $ref_fail_key ) + 1, 15 * MINUTE_IN_SECONDS );
 			self::redirect( add_query_arg( 'wc_track_notice', 'invalid', $return_url ) );
 		}
 
@@ -275,6 +289,10 @@ class WC_Track_Request {
 	 * Accept a replacement payment proof after a rejection.
 	 */
 	public static function handle_proof_upload() {
+		if ( ! get_option( 'wc_consultations_enabled', false ) ) {
+			wp_die( esc_html__( 'Consultations are not currently available.', 'wellness-consult' ), 'Service Unavailable', array( 'response' => 503 ) );
+		}
+
 		$return_url = self::get_return_url();
 
 		if ( ! isset( $_POST['wc_track_upload_nonce'] ) || ! wp_verify_nonce( sanitize_key( wp_unslash( $_POST['wc_track_upload_nonce'] ) ), 'wc_track_upload' ) ) {
@@ -406,6 +424,10 @@ class WC_Track_Request {
 	 * @return string
 	 */
 	public static function render_shortcode() {
+		if ( ! get_option( 'wc_consultations_enabled', false ) ) {
+			return '<div class="wc-unavailable-notice" style="background:var(--surface,#fff); border:1px solid var(--border,#ddd); padding:2.5rem 2rem; border-radius:8px; text-align:center; max-width:640px; margin:2rem auto;"><p style="margin:0; font-size:1.1rem; color:var(--text,#333); font-weight:500;">' . esc_html__( 'Request tracking is not currently available.', 'wellness-consult' ) . '</p></div>';
+		}
+
 		if ( ! defined( 'DONOTCACHEPAGE' ) ) {
 			define( 'DONOTCACHEPAGE', true );
 		}

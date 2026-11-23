@@ -538,6 +538,7 @@
 	display: flex;
 	justify-content: space-between;
 	align-items: center;
+	gap: 1rem;
 	margin-top: 2rem;
 	padding-top: 1.5rem;
 	border-top: 1px solid var(--border);
@@ -545,9 +546,15 @@
 
 .wc-btn-next,
 .wc-btn-submit {
-	padding: 0.75rem 1.5rem;
-	font-size: 1rem;
+	padding: 0.75rem 1.6rem;
+	font-size: 0.95rem;
 	font-weight: 700;
+	margin-left: auto;
+}
+
+.wc-step-buttons .wc-btn-back + .wc-btn-next,
+.wc-step-buttons .wc-btn-back + .wc-btn-submit {
+	margin-left: initial;
 }
 
 /* Error Summary Box */
@@ -1279,7 +1286,6 @@
 }
 
 .wc-booking-container .wc-btn-next,
-.wc-booking-container .wc-btn-back,
 .wc-booking-container .wc-btn-submit,
 .wc-booking-container .wc-btn-payment-hosted,
 .wc-booking-container .wc-btn-track,
@@ -1290,11 +1296,13 @@
 	color: var(--on-primary);
 	font-weight: 700;
 	text-decoration: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
 	transition: filter 0.2s ease, box-shadow 0.2s ease;
 }
 
 .wc-booking-container .wc-btn-next:hover,
-.wc-booking-container .wc-btn-back:hover,
 .wc-booking-container .wc-btn-submit:hover,
 .wc-booking-container .wc-btn-payment-hosted:hover,
 .wc-booking-container .wc-btn-track:hover,
@@ -1304,13 +1312,40 @@
 }
 
 .wc-booking-container .wc-btn-next:focus-visible,
-.wc-booking-container .wc-btn-back:focus-visible,
 .wc-booking-container .wc-btn-submit:focus-visible,
 .wc-booking-container .wc-btn-payment-hosted:focus-visible,
 .wc-booking-container .wc-btn-track:focus-visible,
 .wc-booking-unavailable-card .button-primary:focus-visible {
 	outline: 3px solid var(--accent);
 	outline-offset: 3px;
+}
+
+/* Secondary Back Button Styling */
+.wc-booking-container .wc-btn-back:not(.wc-summary-change) {
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	color: var(--heading);
+	font-weight: 600;
+	font-size: 0.95rem;
+	padding: 0.75rem 1.4rem;
+	text-decoration: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
+	cursor: pointer;
+	transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.wc-booking-container .wc-btn-back:not(.wc-summary-change):hover {
+	background: var(--surface);
+	border-color: var(--primary);
+	color: var(--primary);
+}
+
+.wc-booking-container .wc-btn-back:not(.wc-summary-change):focus-visible {
+	outline: 3px solid var(--accent);
+	outline-offset: 2px;
 }
 
 .wc-booking-container .wc-btn-next:disabled,

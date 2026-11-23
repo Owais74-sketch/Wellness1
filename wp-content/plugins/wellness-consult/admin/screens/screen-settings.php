@@ -105,11 +105,21 @@ if ( isset( $_POST['wc_settings_nonce'] ) && wp_verify_nonce( sanitize_key( $_PO
 	update_option( 'wc_general_settings', $general_settings );
 	$payment_settings['require_online_payment'] = $require_online_payment;
 	update_option( 'wc_payment_settings', $payment_settings );
+
+	$consultations_enabled = isset( $_POST['wc_consultations_enabled'] ) ? '1' : '0';
+	$questions_enabled     = isset( $_POST['wc_questions_enabled'] ) ? '1' : '0';
+	update_option( 'wc_consultations_enabled', $consultations_enabled );
+	update_option( 'wc_questions_enabled', $questions_enabled );
+
+	if ( class_exists( 'WC_Visibility' ) && method_exists( 'WC_Visibility', 'sync_page_statuses' ) ) {
+		WC_Visibility::sync_page_statuses();
+	}
+
 	$notice = esc_html__( 'Consultation settings updated successfully.', 'wellness-consult' );
 
 	WC_Database::log( array(
 		'action' => 'update_general_settings',
-		'note'   => sprintf( 'Settings updated. Delete-on-uninstall: %s.', '1' === $delete_on_uninstall ? 'ON' : 'OFF' ),
+		'note'   => sprintf( 'Settings updated. Consultations: %s, Questions: %s, Delete-on-uninstall: %s.', '1' === $consultations_enabled ? 'ON' : 'OFF', '1' === $questions_enabled ? 'ON' : 'OFF', '1' === $delete_on_uninstall ? 'ON' : 'OFF' ),
 	) );
 }
 
@@ -213,6 +223,42 @@ if ( isset( $_POST['wc_import_nonce'] ) && wp_verify_nonce( sanitize_key( $_POST
 
 	<form method="post" action="">
 		<?php wp_nonce_field( 'wc_save_general_settings', 'wc_settings_nonce' ); ?>
+
+		<!-- Public Feature Availability Switches -->
+		<div class="wc-card" style="background:#fff;border:1px solid #ccd0d4;padding:20px;margin-top:20px;border-radius:4px;border-left:4px solid #2271b1;">
+			<h2 style="margin-top:0;display:flex;align-items:center;gap:8px;">
+				<span class="dashicons dashicons-visibility"></span>
+				<?php esc_html_e( 'Public Feature Availability', 'wellness-consult' ); ?>
+			</h2>
+			<p class="description" style="margin-bottom:15px;">
+				<?php esc_html_e( 'Control whether consultation bookings and anonymous questions are visible to visitors. When disabled, links are removed from navigation, and direct visits are hidden from visitors.', 'wellness-consult' ); ?>
+			</p>
+
+			<table class="form-table" role="presentation">
+				<tbody>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Consultation System', 'wellness-consult' ); ?></th>
+						<td>
+							<label for="wc_consultations_enabled" style="font-weight:600;">
+								<input type="checkbox" id="wc_consultations_enabled" name="wc_consultations_enabled" value="1" <?php checked( get_option( 'wc_consultations_enabled', '0' ), '1' ); ?>>
+								<?php esc_html_e( 'Consultations are open to the public', 'wellness-consult' ); ?>
+							</label>
+							<p class="description"><?php esc_html_e( 'When unchecked (default), booking, tracking, and refund pages are hidden from visitors, and all consultation CTAs across the site are removed.', 'wellness-consult' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Anonymous Q&A', 'wellness-consult' ); ?></th>
+						<td>
+							<label for="wc_questions_enabled" style="font-weight:600;">
+								<input type="checkbox" id="wc_questions_enabled" name="wc_questions_enabled" value="1" <?php checked( get_option( 'wc_questions_enabled', '0' ), '1' ); ?>>
+								<?php esc_html_e( 'Anonymous questions are open to the public', 'wellness-consult' ); ?>
+							</label>
+							<p class="description"><?php esc_html_e( 'When unchecked (default), the Ask a Question page and related links are hidden from visitors.', 'wellness-consult' ); ?></p>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+		</div>
 
 		<!-- Reschedule & Reminders Card -->
 		<div class="wc-card" style="background:#fff;border:1px solid #ccd0d4;padding:20px;margin-top:20px;border-radius:4px;">
